@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boolean Algebra Mastery — Cambridge A2 CS 9618</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111FA2'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='18' font-family='serif' font-weight='bold'>B</text></svg>">
+</head>
+<body>
+
+  <!-- ════════════ SIDE MASCOT IMAGES, BERNICE AND BARRY BOOLEAN ════════════ -->
+  <img src="assets/images/barry-boolean-laptop.png" alt="Barry Boolean" class="side-mascot left">
+  <img src="assets/images/bernice-boolean-thinking.png" alt="Bernice Boolean" class="side-mascot right">
+
+
+  <!-- ════════════ TOP NAVIGATION ════════════ -->
+  <nav class="top-nav hidden" id="top-nav">
+    <a class="nav-brand" href="#" onclick="App.navigate('dashboard')">
+      <span class="brand-icon">
+        <img src="assets/images/CGA-logo-shield.png" alt="CGA Logo">
+      </span>
+      <span>Boolean Algebra Revision Hub</span>
+    </a>
+    <button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="App.toggleMobileNav()">☰</button>
+    <div class="nav-links" id="nav-links">
+      <button class="nav-link active" data-screen="dashboard" onclick="App.navigate('dashboard')">Dashboard</button>
+      <button class="nav-link" data-screen="learn" onclick="App.navigate('learn')">Learn</button>
+      <button class="nav-link" data-screen="practice" onclick="App.navigate('practice')">Practice</button>
+      <button class="nav-link" data-screen="teacher" id="nav-teacher-link" onclick="App.navigate('teacher')">Teacher</button>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar"></div>
+      <span class="nav-username" id="nav-username"></span>
+      <button class="btn-logout" onclick="App.logout()">Log out</button>
+    </div>
+  </nav>
+
+  <!-- ════════════ LOGIN SCREEN ════════════ -->
+  <div class="screen active" id="login-screen">
+    <div class="login-card">
+      <img src="assets/images/barry-and-bernice-login.png" alt="Barry and Bernice Boolean" class="login-mascot-img">
+      <h1>Boolean Mastery</h1>
+      <p class="subtitle">
+        Interactive Boolean Algebra Practice
+        <br><span>Cambridge A2 CS 9618</span>
+      </p>
+
+      <div class="role-toggle" id="role-toggle">
+        <button class="active" data-role="student" onclick="App.setRole('student')">Student</button>
+        <button data-role="teacher" onclick="App.setRole('teacher')">Teacher</button>
+      </div>
+
+      <form id="login-form" onsubmit="App.login(event)">
+        <div class="input-group">
+          <label for="first-name">First Name</label>
+          <input type="text" id="first-name" placeholder="e.g. Alex" required autocomplete="given-name">
+        </div>
+        <div class="input-group">
+          <label for="last-name">Last Name</label>
+          <input type="text" id="last-name" placeholder="e.g. Chen" required autocomplete="family-name">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-full" style="margin-top:8px;">
+          Enter →
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ════════════ STUDENT DASHBOARD ════════════ -->
+  <div class="screen" id="dashboard-screen">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1 id="dashboard-greeting">Welcome back</h1>
+        <p>Your Boolean Algebra revision at a glance.</p>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <!-- Filled by JS -->
+      </div>
+
+      <h2 style="margin-bottom:16px;">Topics</h2>
+      <div class="category-grid" id="category-grid">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ LEARN SCREEN ════════════ -->
+  <div class="screen" id="learn-screen">
+    <div class="container">
+      <div class="learn-header">
+        <h1>Boolean Algebra Laws</h1>
+        <p>Reference guide for all laws needed in CIE 9618. Click any card to practice related exercises.</p>
+      </div>
+      <div class="law-cards" id="law-cards">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ PRACTICE SCREEN ════════════ -->
+  <div class="screen" id="practice-screen">
+    <div class="container">
+      <div class="practice-header">
+        <div>
+          <h2>Practice</h2>
+          <p style="font-size:0.88rem;color:var(--text-muted);">
+            <span id="practice-filter-label">All exercises</span>
+            &nbsp;·&nbsp;
+            <span class="streak-display" id="streak-display">🔥 0 streak</span>
+          </p>
+        </div>
+        <div class="practice-filters" id="practice-filters">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <div class="exercise-area" id="exercise-area">
+        <!-- Current exercise rendered here by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TEACHER DASHBOARD ════════════ -->
+  <div class="screen" id="teacher-screen">
+    <div class="container">
+      <div class="teacher-header">
+        <h1>Teacher Dashboard</h1>
+        <p>Monitor student progress, identify struggling areas, and get targeted intervention suggestions.</p>
+        <div class="import-export-area" style="margin-top:16px;">
+          <button class="btn btn-secondary btn-sm" onclick="Teacher.exportAllData()">⬇ Export Class Data</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">⬆ Import Student Data</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="Teacher.importData(event)">
+          <button class="btn btn-secondary btn-sm" onclick="Teacher.generateDemoData()">🧪 Generate Demo Data</button>
+        </div>
+      </div>
+
+      <!-- ── Class-wide Overview Stats ── -->
+      <div class="class-overview-grid" id="class-overview-grid">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- ── Class Topic Performance Chart ── -->
+      <div class="teacher-card" style="margin-bottom:20px;">
+        <h3>📊 Class Topic Performance</h3>
+        <p class="teacher-card-desc">Average accuracy across all students per topic. Identifies class-wide weak areas.</p>
+        <div class="class-chart-wrap">
+          <canvas id="class-bar-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- ── Student List + Detail ── -->
+      <div class="teacher-grid">
+        <div class="teacher-card teacher-card-students">
+          <h3>📋 Students <span class="student-count-badge" id="student-count-badge">0</span></h3>
+          <div class="student-search-wrap">
+            <input type="text" class="student-search" id="student-search" placeholder="Search students…" oninput="Teacher.filterStudents()">
+          </div>
+          <div class="student-sort-wrap">
+            <span class="student-sort-label">Sort by:</span>
+            <select class="student-sort-select" id="student-sort" onchange="Teacher.renderStudentList()">
+              <option value="name">Name</option>
+              <option value="accuracy-desc">Accuracy ↓</option>
+              <option value="accuracy-asc">Accuracy ↑</option>
+              <option value="attempted-desc">Attempted ↓</option>
+              <option value="recent">Last Active</option>
+            </select>
+          </div>
+          <div class="student-list" id="student-list">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+
+        <div class="teacher-card teacher-card-detail" id="teacher-detail-card">
+          <h3 id="detail-card-title">📊 Class Overview</h3>
+          <div id="teacher-detail-content">
+            <!-- Filled by JS — shows class overview or student detail -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Student Working Viewer ── -->
+      <div class="teacher-card" id="working-viewer-card" style="margin-bottom:20px;display:none;">
+        <h3>📝 Student Working — <span id="working-viewer-name"></span></h3>
+        <p class="teacher-card-desc">Review the student's step-by-step working for each exercise they attempted.</p>
+        <div class="working-viewer-filters">
+          <button class="filter-btn active" onclick="Teacher.filterWorking('all')">All</button>
+          <button class="filter-btn" onclick="Teacher.filterWorking('correct')">✓ Correct</button>
+          <button class="filter-btn" onclick="Teacher.filterWorking('incorrect')">✗ Incorrect</button>
+          <button class="filter-btn" onclick="Teacher.filterWorking('hint')">💡 Used Hint</button>
+        </div>
+        <div class="working-viewer-list" id="working-viewer-list">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <!-- ── Heatmap ── -->
+      <div class="teacher-card" style="margin-bottom:20px;">
+        <h3>🗺️ Exercise Heatmap — <span id="heatmap-student-name">Class Aggregate</span></h3>
+        <p class="teacher-card-desc">Each cell = one of 100 exercises. <span id="heatmap-mode-label">Colour intensity shows how many students answered correctly.</span></p>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+        <div class="heatmap-legend" id="heatmap-legend">
+          <span><span class="dot" style="background:var(--bg);border:1px solid var(--border)"></span> Not attempted</span>
+          <span><span class="dot" style="background:var(--success)"></span> Correct</span>
+          <span><span class="dot" style="background:var(--error)"></span> Incorrect</span>
+          <span><span class="dot" style="background:var(--warning)"></span> Hint used</span>
+        </div>
+      </div>
+
+      <!-- ── Suggestions ── -->
+      <div class="suggestion-box" id="suggestion-box">
+        <h4>💡 Intervention Suggestions — <span id="suggestion-target">Class Overview</span></h4>
+        <div id="suggestion-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TOOLTIP ════════════ -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <!-- ════════════ TOAST CONTAINER ════════════ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <footer>
+    <h6>&copy Crimson Global Academy 2026</h6>
+    <h6>Cambrdige A2 Computer Science 9618</h6>
+  </footer>
+  <script src="scripts/app.js"></script>
+</body>
+</html>
