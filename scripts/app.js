@@ -106,7 +106,6 @@ function processOverline(s) {
 function toCIEText(str) {
   if (!str) return '';
   let s = str.replace(/∧/g, '.').replace(/∨/g, '+');
-  // Convert prefix ¬ to postfix ' — process left to right
   let result = '';
   let i = 0;
   while (i < s.length) {
@@ -129,6 +128,322 @@ function toCIEText(str) {
     }
   }
   return result;
+}
+
+
+/* ══════════════════════════════════════════
+   LIVE INPUT RENDERER
+
+   Converts the student's TYPED notation into CIE display with overbars.
+   Students type postfix prime: A' → overbar on A, (A+B)' → overbar spanning A+B.
+   ══════════════════════════════════════════ */
+
+function renderTypedInput(raw) {
+  if (!raw || !raw.trim()) return '';
+
+  // Escape HTML
+  let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Convert ! prefix to ¬
+  s = s.replace(/!/g, '¬');
+
+  // Convert postfix ' to prefix ¬.
+  // Only treat ' as NOT when preceded by uppercase A-Z, digit 0-9, or closing paren.
+  // Process left-to-right so A'' (double NOT) nests correctly.
+  let safety = 0;
+  while (s.includes("'") && safety < 50) {
+    safety++;
+    let found = false;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] !== "'") continue;
+      if (i > 0 && s[i - 1] === ')') {
+        let depth = 1, j = i - 2;
+        while (j >= 0 && depth > 0) { if (s[j] === ')') depth++; if (s[j] === '(') depth--; j--; }
+        j++;
+        s = s.substring(0, j) + '¬' + s.substring(j, i) + s.substring(i + 1);
+        found = true; break;
+      } else if (i > 0 && /[A-Z0-9]/.test(s[i - 1])) {
+        s = s.substring(0, i - 1) + '¬' + s[i - 1] + s.substring(i + 1);
+        found = true; break;
+      }
+    }
+    if (!found) break;
+  }
+
+  // Convert . to · for CIE AND display
+  s = s.replace(/\./g, '·');
+
+  return processOverline(s);
+}
+
+/** Render multi-line working text — each line rendered independently */
+function renderTypedWorking(raw) {
+  if (!raw || !raw.trim()) return '';
+  return raw.split('\n').map(line => {
+    if (!line.trim()) return '<br>';
+    return renderTypedInput(line);
+  }).join('<br>');
+}
+
+
+/* ══════════════════════════════════════════
+   HANDWRITING / STYLUS SUPPORT
+
+   Uses the browser Handwriting Recognition API (Chrome 99+) where available.
+   Falls back to a drawing canvas that saves strokes as an image.
+   ══════════════════════════════════════════ */
+
+const Handwriting = {
+  _recognizer: null,
+  _available: false,
+
+  async init() {
+    // Check for Handwriting Recognition API (Chromium 99+)
+    if ('createHandwritingRecognizer' in navigator) {
+      try {
+        this._recognizer = await navigator.createHandwritingRecognizer({ languages: ['en'] });
+        this._available = true;
+      } catch (e) { /* API not supported on this device */ }
+    }
+  },
+
+  /** Create a drawing canvas overlay for a specific input/textarea */
+  createCanvas(targetId) {
+    // Remove existing canvas if any
+    const existing = document.getElementById('hw-overlay');
+    if (existing) existing.remove();
+
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'hw-overlay';
+    overlay.className = 'hw-overlay';
+    overlay.innerHTML = `
+      <div class="hw-panel">
+        <div class="hw-header">
+          <span class="hw-title">✏️ Draw with stylus or finger</span>
+          <div class="hw-actions">
+            <button class="btn btn-secondary btn-sm" onclick="Handwriting.clearCanvas()">Clear</button>
+            <button class="btn btn-secondary btn-sm" onclick="Handwriting.closeCanvas()">Cancel</button>
+            <button class="btn btn-primary btn-sm" onclick="Handwriting.insertRecognised('${targetId}')">Insert ✓</button>
+          </div>
+        </div>
+        <canvas id="hw-canvas" class="hw-canvas" width="700" height="200"></canvas>
+        <div class="hw-recognised" id="hw-recognised">
+          <span class="hw-recognised-label">Recognised:</span>
+          <span class="hw-recognised-text" id="hw-recognised-text">Draw something above...</span>
+        </div>
+        <div class="hw-char-palette">
+          <span class="hw-palette-label">Quick insert:</span>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'A')">A</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'B')">B</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'C')">C</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'D')">D</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '+')">+</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '.')">·</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', \"'\")">NOT (')</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '(')"> ( </button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', ')')"> ) </button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '0')">0</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '1')">1</button>
+          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '\\n')">↵</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Set up canvas drawing
+    const canvas = document.getElementById('hw-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // High-DPI
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#111FA2';
+
+    let drawing = false;
+    let points = [];
+    let allStrokes = [];
+    let drawingObj = null;
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : e;
+      return { x: touch.clientX - r.left, y: touch.clientY - r.top, t: Date.now() };
+    };
+
+    const startDraw = (e) => {
+      e.preventDefault();
+      drawing = true;
+      points = [getPos(e)];
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+    };
+
+    const moveDraw = (e) => {
+      if (!drawing) return;
+      e.preventDefault();
+      const p = getPos(e);
+      points.push(p);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    };
+
+    const endDraw = async (e) => {
+      if (!drawing) return;
+      drawing = false;
+      if (points.length > 1) {
+        allStrokes.push([...points]);
+        // Try handwriting recognition if available
+        if (this._available && this._recognizer) {
+          try {
+            if (!drawingObj) drawingObj = this._recognizer.startDrawing();
+            drawingObj.addStroke({ points: points.map(p => ({ x: p.x, y: p.y, t: p.t })) });
+            const results = await drawingObj.getPrediction();
+            if (results && results.length > 0) {
+              document.getElementById('hw-recognised-text').textContent = results[0].text;
+            }
+          } catch (err) { /* Recognition failed silently */ }
+        }
+      }
+    };
+
+    canvas.addEventListener('pointerdown', startDraw);
+    canvas.addEventListener('pointermove', moveDraw);
+    canvas.addEventListener('pointerup', endDraw);
+    canvas.addEventListener('pointerleave', endDraw);
+    canvas.style.touchAction = 'none';
+
+    this._currentStrokes = allStrokes;
+    this._drawingObj = drawingObj;
+    this._canvas = canvas;
+    this._ctx = ctx;
+
+    // Focus the overlay
+    setTimeout(() => overlay.classList.add('show'), 10);
+  },
+
+  clearCanvas() {
+    if (this._canvas && this._ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      this._ctx.clearRect(0, 0, this._canvas.width / dpr, this._canvas.height / dpr);
+    }
+    this._currentStrokes = [];
+    this._drawingObj = null;
+    const recText = document.getElementById('hw-recognised-text');
+    if (recText) recText.textContent = 'Draw something above...';
+  },
+
+  closeCanvas() {
+    const overlay = document.getElementById('hw-overlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      setTimeout(() => overlay.remove(), 200);
+    }
+  },
+
+  insertRecognised(targetId) {
+    const recText = document.getElementById('hw-recognised-text');
+    const recognised = recText ? recText.textContent : '';
+    if (recognised && recognised !== 'Draw something above...') {
+      this.insertChar(targetId, recognised);
+    }
+    this.closeCanvas();
+  },
+
+  insertChar(targetId, char) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+
+    // Insert at cursor position
+    const start = el.selectionStart || el.value.length;
+    const end = el.selectionEnd || el.value.length;
+    el.value = el.value.substring(0, start) + char + el.value.substring(end);
+    el.selectionStart = el.selectionEnd = start + char.length;
+    el.focus();
+
+    // Trigger preview update
+    if (typeof Practice !== 'undefined' && Practice.updatePreviews) {
+      Practice.updatePreviews();
+    }
+
+    // Close overlay if it was a quick-insert from palette while overlay is open
+    // (don't close — let them keep inserting)
+  }
+};
+
+// Init handwriting on load
+document.addEventListener('DOMContentLoaded', () => { Handwriting.init(); });
+
+
+/* ══════════════════════════════════════════
+   COMMUTATIVE EQUIVALENCE CHECKER
+
+   Checks if two normalised Boolean expressions are equivalent
+   under commutativity of AND and OR.
+
+   Strategy:
+     1. Split on top-level OR (∨) → get terms
+     2. For each term, split on top-level AND (∧) → get factors
+     3. Sort both sets and compare
+     4. Also handles single-variable answers and constants
+   ══════════════════════════════════════════ */
+
+function areCommutativelyEqual(a, b) {
+  if (a === b) return true;
+
+  // Split expression into top-level terms by a given operator,
+  // respecting parenthesis depth
+  function splitTopLevel(expr, op) {
+    const parts = [];
+    let depth = 0, start = 0;
+    for (let i = 0; i < expr.length; i++) {
+      if (expr[i] === '(') depth++;
+      else if (expr[i] === ')') depth--;
+      else if (depth === 0 && expr[i] === op) {
+        parts.push(expr.substring(start, i));
+        start = i + 1;
+      }
+    }
+    parts.push(expr.substring(start));
+    return parts.filter(p => p.length > 0);
+  }
+
+  // Normalise a single term: split by AND, sort factors
+  function normaliseTerm(term) {
+    const factors = splitTopLevel(term, '∧');
+    return factors.map(f => {
+      // Recursively normalise parenthesised sub-expressions
+      if (f.startsWith('(') && f.endsWith(')')) {
+        return '(' + normaliseExpr(f.substring(1, f.length - 1)) + ')';
+      }
+      // Handle ¬(expr) — normalise inside
+      if (f.startsWith('¬(') && f.endsWith(')')) {
+        return '¬(' + normaliseExpr(f.substring(2, f.length - 1)) + ')';
+      }
+      return f;
+    }).sort().join('∧');
+  }
+
+  // Normalise a full expression: split by OR, normalise each term, sort terms
+  function normaliseExpr(expr) {
+    const terms = splitTopLevel(expr, '∨');
+    return terms.map(t => normaliseTerm(t)).sort().join('∨');
+  }
+
+  return normaliseExpr(a) === normaliseExpr(b);
 }
 
 
@@ -175,19 +490,61 @@ const App = {
   login(e) {
     e.preventDefault();
     const first = document.getElementById('first-name').value.trim();
-    const last = document.getElementById('last-name').value.trim();
-    if (!first || !last) return;
+    const email = document.getElementById('school-email').value.trim().toLowerCase();
+    const loginError = document.getElementById('login-error');
+    loginError.classList.remove('show');
 
-    const userId = `${first.toLowerCase()}_${last.toLowerCase()}`;
-    currentUser = { firstName: first, lastName: last, id: userId };
+    if (!first || !email) return;
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      loginError.textContent = 'Please enter a valid email address.';
+      loginError.classList.add('show');
+      return;
+    }
+
+    // ── Domain enforcement ──
+    const STUDENT_DOMAIN = '@student.cga.school';
+    const TEACHER_DOMAIN = '@cga.school';
+
+    if (currentRole === 'student') {
+      if (!email.endsWith(STUDENT_DOMAIN)) {
+        loginError.textContent = 'Students must use their @student.cga.school email address.';
+        loginError.classList.add('show');
+        return;
+      }
+      // ── Whitelist check — student must be pre-approved by teacher ──
+      const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+      if (!whitelist.includes(email)) {
+        loginError.textContent = 'Your email has not been approved by your teacher. Please contact your teacher to request access.';
+        loginError.classList.add('show');
+        return;
+      }
+    } else if (currentRole === 'teacher') {
+      if (!email.endsWith(TEACHER_DOMAIN) || email.endsWith(STUDENT_DOMAIN)) {
+        loginError.textContent = 'Teachers must use their @cga.school email address (not @student.cga.school).';
+        loginError.classList.add('show');
+        return;
+      }
+    }
+
+    // Use email (sanitised) as the unique ID
+    const userId = email.replace(/[^a-z0-9]/g, '_');
+    currentUser = { firstName: first, email: email, id: userId };
 
     localStorage.setItem('ba_session', JSON.stringify({ user: currentUser, role: currentRole }));
 
     if (currentRole === 'student') {
       const existing = localStorage.getItem(`ba_progress_${userId}`);
       if (!existing) {
-        const progress = { userId, firstName: first, lastName: last, exercises: {}, startedAt: new Date().toISOString() };
+        const progress = { userId, firstName: first, email: email, exercises: {}, startedAt: new Date().toISOString() };
         localStorage.setItem(`ba_progress_${userId}`, JSON.stringify(progress));
+      } else {
+        const prog = JSON.parse(existing);
+        if (prog.firstName !== first) {
+          prog.firstName = first;
+          localStorage.setItem(`ba_progress_${userId}`, JSON.stringify(prog));
+        }
       }
       const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
       if (!roster.includes(userId)) {
@@ -240,7 +597,7 @@ function enterApp() {
   const nav = document.getElementById('top-nav');
   nav.classList.remove('hidden');
 
-  const initials = (currentUser.firstName[0] + currentUser.lastName[0]).toUpperCase();
+  const initials = currentUser.firstName[0].toUpperCase();
   document.getElementById('nav-avatar').textContent = initials;
   document.getElementById('nav-username').textContent = currentUser.firstName;
 
@@ -550,6 +907,10 @@ const Practice = {
         </div>`;
     }
 
+    // Determine if working is required for this exercise
+    const WORKING_EXEMPT = ['identity_null', 'commutative_associative', 'inverse_complement', 'double_negation'];
+    const workingRequired = !WORKING_EXEMPT.includes(ex.category) && ex.type !== 'identify';
+
     area.innerHTML = `
       <div class="exercise-progress-bar">
         <div class="exercise-progress-fill" style="width:${progressPct}%"></div>
@@ -564,20 +925,41 @@ const Practice = {
         <div class="exercise-question">${renderCIE(ex.question)}</div>
         <div class="exercise-expression">${renderCIE(ex.expression)}</div>
 
-        <label class="working-label">Show your working <span class="required">* required</span></label>
+        <div class="working-label-row">
+          <label class="working-label" style="margin-bottom:0;">Show your working ${workingRequired
+            ? '<span class="required">* required</span>'
+            : '<span style="color:var(--text-muted);font-size:0.7rem;text-transform:none;letter-spacing:0;">(optional for this type of question)</span>'}</label>
+          <button class="btn-stylus" onclick="Handwriting.createCanvas('working-input')" title="Draw with stylus">✏️ Draw</button>
+        </div>
         <textarea class="working-textarea" id="working-input"
-          placeholder="Show each step of your simplification, naming the law used at each step.&#10;&#10;e.g.&#10;= A'.B + A.B    [De Morgan's]&#10;= B.(A' + A)      [Factorise / Distributive]&#10;= B.1                [Complement]&#10;= B                   [Identity]"
+          oninput="Practice.updatePreviews()"
+          data-required="${workingRequired}"
+          placeholder="${workingRequired
+            ? 'Show each step, naming the law at each step.\n\ne.g.\n= A\x27.B + A.B    [De Morgan\x27s]\n= B.(A\x27 + A)      [Distributive]\n= B.1                [Complement]\n= B                   [Identity]'
+            : 'Working is optional for this question, but you can still show your reasoning here.'}"
           ${exProgress?.status === 'correct' ? 'disabled' : ''}>${exProgress?.status === 'correct' && exProgress?.working ? exProgress.working : ''}</textarea>
-        <div class="working-warning" id="working-warning">⚠ Please show your working before submitting your answer.</div>
+        <div class="live-preview" id="working-preview">
+          <div class="live-preview-label">CIE Notation Preview</div>
+          <div class="live-preview-content" id="working-preview-content"></div>
+        </div>
+        <div class="working-warning" id="working-warning"></div>
 
-        <label class="working-label">Final answer</label>
+        <div class="working-label-row">
+          <label class="working-label" style="margin-bottom:0;">Final answer</label>
+          <button class="btn-stylus" onclick="Handwriting.createCanvas('answer-input')" title="Draw with stylus">✏️ Draw</button>
+        </div>
         <div class="answer-input-group">
           <input type="text" class="answer-input" id="answer-input"
             placeholder="Type your final simplified answer (e.g. A'.B + C)"
+            oninput="Practice.updatePreviews()"
             ${exProgress?.status === 'correct' ? `value="${toCIEText(ex.answer)}" disabled` : ''}
             onkeydown="if(event.key==='Enter')Practice.checkAnswer()">
           <button class="btn btn-primary" onclick="Practice.checkAnswer()"
             ${exProgress?.status === 'correct' ? 'disabled' : ''}>Check</button>
+        </div>
+        <div class="live-preview live-preview-inline" id="answer-preview">
+          <div class="live-preview-label">CIE Notation Preview</div>
+          <div class="live-preview-content live-preview-answer" id="answer-preview-content"></div>
         </div>
         <div class="exercise-actions">
           <button class="btn btn-secondary btn-sm" onclick="Practice.showHint()">💡 Hint</button>
@@ -603,21 +985,55 @@ const Practice = {
     const inp = document.getElementById('answer-input');
     if (inp && !inp.disabled) setTimeout(() => inp.focus(), 100);
 
+    // Trigger initial preview render
+    this.updatePreviews();
+
     document.getElementById('streak-display').innerHTML = `🔥 ${streak} streak`;
     if (streak >= 3) document.getElementById('streak-display').classList.add('active');
     else document.getElementById('streak-display').classList.remove('active');
   },
 
-  /* ── Answer Checker ──
-     Normalises both the student's input and every acceptable answer
-     into a common canonical form so notation differences don't matter.
+  /** Live-update CIE notation previews as the student types */
+  updatePreviews() {
+    const answerInput = document.getElementById('answer-input');
+    const answerPreview = document.getElementById('answer-preview-content');
+    const answerWrap = document.getElementById('answer-preview');
+    if (answerInput && answerPreview && answerWrap) {
+      const val = answerInput.value.trim();
+      if (val) {
+        answerPreview.innerHTML = renderTypedInput(val);
+        answerWrap.classList.add('visible');
+      } else {
+        answerPreview.innerHTML = '';
+        answerWrap.classList.remove('visible');
+      }
+    }
+
+    const workingInput = document.getElementById('working-input');
+    const workingPreview = document.getElementById('working-preview-content');
+    const workingWrap = document.getElementById('working-preview');
+    if (workingInput && workingPreview && workingWrap) {
+      const val = workingInput.value.trim();
+      if (val) {
+        workingPreview.innerHTML = renderTypedWorking(val);
+        workingWrap.classList.add('visible');
+      } else {
+        workingPreview.innerHTML = '';
+        workingWrap.classList.remove('visible');
+      }
+    }
+  },
+
+  /* ── Answer Checker with Working Validation ──
+     For categories that require working, the validator checks:
+       1. Minimum length (20+ chars)
+       2. Contains at least one recognised Boolean law name
+       3. Contains at least 2 step-lines (lines starting with = or containing →)
+       4. Contains at least one variable (A-Z) from the exercise
+       5. Not repetitive gibberish (no single char repeated 10+ times)
      
-     Accepted input styles:
-       CIE:         A.B + C    A'.B     (A+B)'
-       Symbolic:    A∧B ∨ C    ¬A∧B     ¬(A∨B)
-       Words:       A AND B OR C   NOT A AND B
-       Programming: A && B || C    !A && B
-       Prime:       A'B + C'
+     Categories exempt from working: identity_null, commutative_associative, 
+     inverse_complement, double_negation. Also exempt: identify-type questions.
   */
   checkAnswer() {
     const ex = filteredExercises[currentExerciseIndex];
@@ -629,29 +1045,43 @@ const Practice = {
 
     if (!userAnswer) return;
 
-    // Require working to be shown (at least 10 characters — a meaningful step)
-    if (userWorking.length < 10) {
-      workingWarning.classList.add('show');
-      workingInput.classList.add('error');
-      workingInput.focus();
-      return;
+    // Determine if working is required
+    const WORKING_EXEMPT = ['identity_null', 'commutative_associative', 'inverse_complement', 'double_negation'];
+    const workingRequired = !WORKING_EXEMPT.includes(ex.category) && ex.type !== 'identify';
+
+    // ── Validate working if required ──
+    if (workingRequired) {
+      const problems = this._validateWorking(userWorking, ex);
+      if (problems.length > 0) {
+        workingWarning.innerHTML = '⚠ ' + problems[0];
+        workingWarning.classList.add('show');
+        workingInput.classList.add('error');
+        workingInput.focus();
+        return;
+      }
     }
     workingWarning.classList.remove('show');
     workingInput.classList.remove('error');
 
+    // ── Normalise and check answer ──
     const normalise = s => s.toLowerCase()
       .replace(/\s+/g, '')
-      .replace(/·/g, '∧')        // middle dot → ∧
-      .replace(/\./g, '∧')       // period/full stop → ∧  (CIE AND)
-      .replace(/\+/g, '∨')       // plus → ∨  (CIE OR)
-      .replace(/!/g, '¬')        // bang → ¬
-      .replace(/not/gi, '¬')     // word NOT
-      .replace(/and/gi, '∧')     // word AND
-      .replace(/or/gi, '∨')      // word OR
-      .replace(/'/g, '¬');        // prime → ¬  (CIE NOT)
+      .replace(/·/g, '∧').replace(/\./g, '∧')
+      .replace(/\+/g, '∨')
+      .replace(/!/g, '¬').replace(/not/gi, '¬')
+      .replace(/and/gi, '∧').replace(/or/gi, '∨')
+      .replace(/'/g, '¬');
 
     const normUser = normalise(userAnswer);
-    const isCorrect = ex.acceptableAnswers.some(a => normalise(a) === normUser);
+
+    // Check exact match first, then commutative equivalence
+    const isCorrect = ex.acceptableAnswers.some(a => {
+      const normA = normalise(a);
+      if (normA === normUser) return true;
+      // Check commutative equivalence: split on top-level ∨ (OR) and ∧ (AND)
+      // and compare as sets of terms
+      return areCommutativelyEqual(normA, normUser);
+    });
 
     const feedbackArea = document.getElementById('feedback-area');
 
@@ -682,6 +1112,80 @@ const Practice = {
     }
 
     document.getElementById('streak-display').innerHTML = `🔥 ${streak} streak`;
+  },
+
+  /** Validate the student's working — returns array of problem messages (empty = valid) */
+  _validateWorking(working, exercise) {
+    const problems = [];
+
+    // ── Determine minimum requirements based on category + difficulty ──
+    // Simple single-law applications need less working than multi-step chains.
+    const cat = exercise.category;
+    const diff = exercise.difficulty;
+
+    // Minimum line counts by category
+    //   absorption, de_morgan (easy): 1 line is enough — just state the law + result
+    //   distributive, de_morgan (medium+): 2 lines
+    //   multi_step, cie_exam: 2 lines minimum (hard = 3)
+    let minLines, minLength;
+    if (['absorption'].includes(cat)) {
+      minLines = 1; minLength = 12;
+    } else if (cat === 'de_morgan' && diff <= 1) {
+      minLines = 1; minLength = 12;
+    } else if (['distributive', 'de_morgan'].includes(cat) && diff <= 2) {
+      minLines = 1; minLength = 15;
+    } else if (['multi_step', 'cie_exam'].includes(cat) && diff >= 3) {
+      minLines = 2; minLength = 20;
+    } else {
+      minLines = 1; minLength = 15;
+    }
+
+    // 1. Must exist and meet minimum length
+    if (!working || working.length < minLength) {
+      problems.push(`Your working is too short. Show your simplification step${minLines > 1 ? 's' : ''} with the law you applied.`);
+      return problems;
+    }
+
+    // 2. Reject repetitive gibberish (same char repeated 10+ times)
+    if (/(.)\1{9,}/.test(working)) {
+      problems.push('Your working appears to contain repeated characters. Please show genuine simplification steps.');
+      return problems;
+    }
+    const uniqueChars = new Set(working.replace(/\s/g, '').split('')).size;
+    if (uniqueChars < 4) {
+      problems.push('Your working needs to contain actual Boolean expressions and law names, not placeholder text.');
+      return problems;
+    }
+
+    // 3. Must contain at least one recognised Boolean law name
+    const lawNames = [
+      /de\s*morgan/i, /distributiv/i, /absorption/i, /identity/i, /null/i, /domination/i,
+      /idempotent/i, /complement/i, /involution/i, /double\s*neg/i, /commutativ/i,
+      /associativ/i, /consensus/i, /reduction/i, /factoris/i, /expand/i, /simplif/i
+    ];
+    const hasLaw = lawNames.some(rx => rx.test(working));
+    if (!hasLaw) {
+      problems.push('Name the Boolean law you applied (e.g. [Absorption], [De Morgan\'s], [Distributive]).');
+      return problems;
+    }
+
+    // 4. Check line count against minimum for this category/difficulty
+    const lines = working.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < minLines) {
+      problems.push(`Show at least ${minLines} step${minLines > 1 ? 's' : ''} — the intermediate expression and the law applied.`);
+      return problems;
+    }
+
+    // 5. Must reference at least one variable from the exercise
+    const exprVars = (exercise.expression || '').match(/[A-Z]/g) || [];
+    const workingUpper = working.toUpperCase();
+    const hasVar = exprVars.some(v => workingUpper.includes(v));
+    if (exprVars.length > 0 && !hasVar) {
+      problems.push('Your working should reference the variables from the question (e.g. ' + [...new Set(exprVars)].join(', ') + ').');
+      return problems;
+    }
+
+    return problems; // Empty = all checks passed
   },
 
   showHint() {
@@ -744,6 +1248,7 @@ const Teacher = {
   workingFilter: 'all',
 
   render() {
+    this.renderEmailList();
     this.renderClassOverview();
     this.renderClassBarChart();
     this.renderStudentList();
@@ -870,7 +1375,7 @@ const Teacher = {
 
     const searchTerm = (document.getElementById('student-search')?.value || '').toLowerCase();
     let filtered = students.filter(st => {
-      const name = ((st.progress.firstName || '') + ' ' + (st.progress.lastName || '')).toLowerCase();
+      const name = ((st.progress.firstName || '') + ' ' + (st.progress.email || '')).toLowerCase();
       return name.includes(searchTerm);
     });
 
@@ -885,7 +1390,7 @@ const Teacher = {
     });
 
     container.innerHTML = filtered.map(st => {
-      const initials = ((st.progress.firstName || st.uid)[0] + (st.progress.lastName || '?')[0]).toUpperCase();
+      const initials = (st.progress.firstName || st.uid)[0].toUpperCase();
       let scoreClass = 'score-mid';
       if (st.accuracy >= 70) scoreClass = 'score-high';
       else if (st.accuracy < 40 && st.attempted > 0) scoreClass = 'score-low';
@@ -895,7 +1400,7 @@ const Teacher = {
         if (mins < 1) lastActive = 'just now'; else if (mins < 60) lastActive = mins + 'm ago';
         else if (mins < 1440) lastActive = Math.floor(mins / 60) + 'h ago'; else lastActive = Math.floor(mins / 1440) + 'd ago';
       }
-      return `<div class="student-row ${this.selectedStudent === st.uid ? 'selected' : ''}" onclick="Teacher.selectStudent('${st.uid}')"><div class="student-avatar-sm">${initials}</div><div class="student-info"><div class="student-name">${st.progress.firstName || st.uid} ${st.progress.lastName || ''}</div><div class="student-stats-mini">${st.attempted}/${EXERCISES.length} done · ${st.correct} correct${lastActive ? ' · <span class="student-last-active">' + lastActive + '</span>' : ''}</div></div><span class="student-score-badge ${scoreClass}">${st.accuracy}%</span></div>`;
+      return `<div class="student-row ${this.selectedStudent === st.uid ? 'selected' : ''}" onclick="Teacher.selectStudent('${st.uid}')"><div class="student-avatar-sm">${initials}</div><div class="student-info"><div class="student-name">${st.progress.firstName || st.uid} <span class="student-email">${st.progress.email || ''}</span></div><div class="student-stats-mini">${st.attempted}/${EXERCISES.length} done · ${st.correct} correct${lastActive ? ' · <span class="student-last-active">' + lastActive + '</span>' : ''}</div></div><span class="student-score-badge ${scoreClass}">${st.accuracy}%</span></div>`;
     }).join('');
   },
 
@@ -923,7 +1428,7 @@ const Teacher = {
     const sorted = [...students].sort((a, b) => a.accuracy - b.accuracy);
     const atRiskList = sorted.filter(s => s.attempted >= 2).slice(0, 5);
     let atRiskHTML = atRiskList.length > 0
-      ? atRiskList.map(st => `<div class="at-risk-row" onclick="Teacher.selectStudent('${st.uid}')"><span class="at-risk-name">${st.progress.firstName} ${st.progress.lastName}</span><span class="at-risk-stat">${st.accuracy}% (${st.attempted} done)</span></div>`).join('')
+      ? atRiskList.map(st => `<div class="at-risk-row" onclick="Teacher.selectStudent('${st.uid}')"><span class="at-risk-name">${st.progress.firstName}</span><span class="at-risk-stat">${st.accuracy}% (${st.attempted} done)</span></div>`).join('')
       : '<p style="font-size:0.85rem;color:var(--text-muted);">No at-risk students identified yet.</p>';
 
     document.getElementById('teacher-detail-content').innerHTML = `<div class="class-detail-section"><h4>Topic Accuracy (Class Average)</h4>${catRows}</div><div class="class-detail-section"><h4>⚠ Students Needing Support</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Lowest-performing students — click to view details.</p>${atRiskHTML}</div>`;
@@ -938,9 +1443,9 @@ const Teacher = {
     this.renderWorkingViewer(uid);
     this.renderSuggestions(uid);
     const p = getProgress(uid);
-    document.getElementById('heatmap-student-name').textContent = (p?.firstName || uid) + ' ' + (p?.lastName || '');
+    document.getElementById('heatmap-student-name').textContent = (p?.firstName || uid);
     document.getElementById('heatmap-mode-label').textContent = 'Green = correct, red = incorrect, amber = hint used.';
-    document.getElementById('suggestion-target').textContent = (p?.firstName || uid) + ' ' + (p?.lastName || '');
+    document.getElementById('suggestion-target').textContent = (p?.firstName || uid);
     document.getElementById('teacher-detail-card')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
@@ -983,7 +1488,7 @@ const Teacher = {
     let lastActive = 'Never';
     if (progress.lastActive) lastActive = new Date(progress.lastActive).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-    document.getElementById('detail-card-title').innerHTML = `📊 ${progress.firstName} ${progress.lastName} <button class="btn btn-secondary btn-sm" style="margin-left:auto;font-size:0.72rem;" onclick="Teacher.deselectStudent()">← Back to Class</button>`;
+    document.getElementById('detail-card-title').innerHTML = `📊 ${progress.firstName} <span style="font-weight:400;font-size:0.78rem;color:var(--text-muted);">${progress.email || ''}</span> <button class="btn btn-secondary btn-sm" style="margin-left:auto;font-size:0.72rem;" onclick="Teacher.deselectStudent()">← Back to Class</button>`;
 
     document.getElementById('teacher-detail-content').innerHTML = `
       <div class="student-detail">
@@ -1038,7 +1543,7 @@ const Teacher = {
     const progress = getProgress(uid);
     if (!progress) { card.style.display = 'none'; return; }
     card.style.display = 'block';
-    document.getElementById('working-viewer-name').textContent = (progress.firstName || uid) + ' ' + (progress.lastName || '');
+    document.getElementById('working-viewer-name').textContent = (progress.firstName || uid);
 
     const exercises = progress.exercises || {};
     const attempted = Object.entries(exercises).map(([id, d]) => ({ id: parseInt(id), ...d, exercise: EXERCISES.find(e => e.id === parseInt(id)) })).filter(e => e.exercise).sort((a, b) => a.id - b.id);
@@ -1179,18 +1684,162 @@ const Teacher = {
   },
 
   generateDemoData() {
-    if (!confirm('Generate 8 demo students with randomised progress?')) return;
-    const names = [['Emma','Watson'],['James','Liu'],['Sophie','Taylor'],['Oliver','Khan'],['Mia','Patel'],['Noah','Smith'],['Ava','Chen'],['Liam','Brown']];
+    if (!confirm('Generate 8 demo students with randomised progress? Their emails will also be added to the approved list.')) return;
+    const demoStudents = [
+      ['Emma','emma.watson@student.cga.school'],['James','james.liu@student.cga.school'],['Sophie','sophie.taylor@student.cga.school'],['Oliver','oliver.khan@student.cga.school'],
+      ['Mia','mia.patel@student.cga.school'],['Noah','noah.smith@student.cga.school'],['Ava','ava.chen@student.cga.school'],['Liam','liam.brown@student.cga.school']
+    ];
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
-    names.forEach(([first, last]) => {
-      const uid = `${first.toLowerCase()}_${last.toLowerCase()}`; if (roster.includes(uid)) return; roster.push(uid);
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+
+    demoStudents.forEach(([first, email]) => {
+      const uid = email.replace(/[^a-z0-9]/g, '_');
+      if (!whitelist.includes(email)) whitelist.push(email);
+      if (roster.includes(uid)) return;
+      roster.push(uid);
       const exercises = {}, num = 15 + Math.floor(Math.random() * 70);
       const shuffled = [...EXERCISES].sort(() => Math.random() - 0.5).slice(0, num);
       const strengths = {}; Object.keys(CATEGORIES).forEach(k => { strengths[k] = 0.3 + Math.random() * 0.6; });
       shuffled.forEach(ex => { const chance = strengths[ex.category] - (ex.difficulty - 1) * 0.12; const correct = Math.random() < chance; exercises[ex.id] = { status: correct ? 'correct' : 'incorrect', attempts: correct ? 1 : 1 + Math.floor(Math.random() * 3), hintUsed: !correct && Math.random() < 0.4, working: correct ? `= step [${ex.lawUsed}]\n= ${ex.answer}` : '', timestamp: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString() }; });
-      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: first, lastName: last, exercises, startedAt: new Date().toISOString(), lastActive: new Date(Date.now() - Math.random() * 3 * 86400000).toISOString() }));
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: first, email: email, exercises, startedAt: new Date().toISOString(), lastActive: new Date(Date.now() - Math.random() * 3 * 86400000).toISOString() }));
     });
-    localStorage.setItem('ba_roster', JSON.stringify(roster)); showToast('8 demo students generated.', 'success'); this.render();
+
+    localStorage.setItem('ba_roster', JSON.stringify(roster));
+    localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
+    showToast('8 demo students generated with approved emails.', 'success');
+    this.render();
+  },
+
+  // ══════════════════════════════════════════
+  //  EMAIL WHITELIST MANAGEMENT
+  // ══════════════════════════════════════════
+
+  renderEmailList() {
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    const badge = document.getElementById('email-count-badge');
+    const list = document.getElementById('email-list');
+    if (!badge || !list) return;
+
+    badge.textContent = whitelist.length;
+
+    if (whitelist.length === 0) {
+      list.innerHTML = '<div class="email-empty">No approved emails yet. Add emails above to allow students to log in.</div>';
+      return;
+    }
+
+    // Check which emails have an active student (logged in at least once)
+    const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
+    const activeUids = new Set(roster);
+
+    list.innerHTML = whitelist.sort().map(email => {
+      const uid = email.replace(/[^a-z0-9]/g, '_');
+      const isActive = activeUids.has(uid);
+      return `<div class="email-row">
+        <span>${email}</span>
+        <div class="email-row-actions">
+          <span class="email-status ${isActive ? 'active' : 'pending'}">${isActive ? 'active' : 'pending'}</span>
+          <button class="email-remove-btn" onclick="Teacher.removeEmail('${email}')" title="Remove">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  addEmail() {
+    const input = document.getElementById('email-add-input');
+    const email = (input.value || '').trim().toLowerCase();
+    if (!email) return;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast('Invalid email format.', 'error');
+      return;
+    }
+
+    if (!email.endsWith('@student.cga.school')) {
+      showToast('Only @student.cga.school email addresses can be approved.', 'error');
+      return;
+    }
+
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    if (whitelist.includes(email)) {
+      showToast('This email is already approved.', 'info');
+      input.value = '';
+      return;
+    }
+
+    whitelist.push(email);
+    localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
+    input.value = '';
+    showToast(`${email} approved.`, 'success');
+    this.renderEmailList();
+  },
+
+  removeEmail(email) {
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist.filter(e => e !== email)));
+    showToast(`${email} removed from approved list.`, 'info');
+    this.renderEmailList();
+  },
+
+  uploadEmails(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      // Parse CSV or plain text — one email per line, or comma-separated
+      const allLines = text
+        .replace(/,/g, '\n')
+        .split('\n')
+        .map(line => line.trim().toLowerCase())
+        .filter(line => line.length > 0);
+
+      // Only accept valid @student.cga.school emails
+      const validEmails = allLines.filter(line =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(line) && line.endsWith('@student.cga.school')
+      );
+      const rejected = allLines.length - validEmails.length;
+
+      if (validEmails.length === 0) {
+        showToast(`No valid @student.cga.school emails found in the file.${rejected > 0 ? ` ${rejected} line${rejected > 1 ? 's' : ''} rejected.` : ''}`, 'error');
+        return;
+      }
+
+      const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+      let added = 0;
+      validEmails.forEach(email => {
+        if (!whitelist.includes(email)) {
+          whitelist.push(email);
+          added++;
+        }
+      });
+
+      localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
+      let msg = `${added} new email${added !== 1 ? 's' : ''} approved.`;
+      if (validEmails.length - added > 0) msg += ` ${validEmails.length - added} already existed.`;
+      if (rejected > 0) msg += ` ${rejected} rejected (wrong domain).`;
+      showToast(msg, 'success');
+      this.renderEmailList();
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  },
+
+  exportEmails() {
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    if (whitelist.length === 0) {
+      showToast('No emails to export.', 'info');
+      return;
+    }
+
+    const blob = new Blob([whitelist.sort().join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `approved-emails-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Email list exported.', 'success');
   }
 };
 
