@@ -17,10 +17,8 @@
   <!-- ════════════ TOP NAVIGATION ════════════ -->
   <nav class="top-nav hidden" id="top-nav">
     <a class="nav-brand" href="#" onclick="App.navigate('dashboard')">
-      <span class="brand-icon">
-        <img src="assets/images/CGA-logo-shield.png" alt="CGA Logo">
-      </span>
-      <span>Boolean Algebra Revision Hub</span>
+      <span class="brand-icon">B</span>
+      <span>Boolean Mastery</span>
     </a>
     <button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="App.toggleMobileNav()">☰</button>
     <div class="nav-links" id="nav-links">
@@ -39,7 +37,7 @@
   <!-- ════════════ LOGIN SCREEN ════════════ -->
   <div class="screen active" id="login-screen">
     <div class="login-card">
-      <img src="assets/images/barry-and-bernice-login.png" alt="Barry and Bernice Boolean" class="login-mascot-img">
+      <div class="login-icon">B</div>
       <h1>Boolean Mastery</h1>
       <p class="subtitle">
         Interactive Boolean Algebra Practice
@@ -57,9 +55,10 @@
           <input type="text" id="first-name" placeholder="e.g. Alex" required autocomplete="given-name">
         </div>
         <div class="input-group">
-          <label for="last-name">Last Name</label>
-          <input type="text" id="last-name" placeholder="e.g. Chen" required autocomplete="family-name">
+          <label for="school-email">School Email Address</label>
+          <input type="email" id="school-email" placeholder="e.g. alex.chen@student.cga.school" required autocomplete="email">
         </div>
+        <div class="login-error" id="login-error"></div>
         <button type="submit" class="btn btn-primary btn-lg btn-full" style="margin-top:8px;">
           Enter →
         </button>
@@ -72,7 +71,7 @@
     <div class="container">
       <div class="dashboard-header">
         <h1 id="dashboard-greeting">Welcome back</h1>
-        <p>Your Boolean Algebra revision at a glance.</p>
+        <p>Your Boolean Algebra progress at a glance.</p>
       </div>
 
       <div class="stat-grid" id="stat-grid">
@@ -133,6 +132,26 @@
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">⬆ Import Student Data</button>
           <input type="file" id="import-file" accept=".json" style="display:none" onchange="Teacher.importData(event)">
           <button class="btn btn-secondary btn-sm" onclick="Teacher.generateDemoData()">🧪 Generate Demo Data</button>
+        </div>
+      </div>
+
+      <!-- ── Approved Emails Management ── -->
+      <div class="teacher-card" style="margin-bottom:20px;" id="email-manager-card">
+        <h3>🔐 Approved Student Emails <span class="student-count-badge" id="email-count-badge">0</span></h3>
+        <p class="teacher-card-desc">Only students with approved <strong>@student.cga.school</strong> email addresses can log in. Add emails individually or upload a list.</p>
+        <div class="email-manager-actions">
+          <div class="email-add-row">
+            <input type="email" class="student-search" id="email-add-input" placeholder="firstname.lastname@student.cga.school" onkeydown="if(event.key==='Enter'){event.preventDefault();Teacher.addEmail();}">
+            <button class="btn btn-primary btn-sm" onclick="Teacher.addEmail()">+ Add</button>
+          </div>
+          <div class="email-upload-row">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('email-upload-file').click()">⬆ Upload Email List (.csv or .txt)</button>
+            <input type="file" id="email-upload-file" accept=".csv,.txt" style="display:none" onchange="Teacher.uploadEmails(event)">
+            <button class="btn btn-secondary btn-sm" onclick="Teacher.exportEmails()">⬇ Export Emails</button>
+          </div>
+        </div>
+        <div class="email-list" id="email-list">
+          <!-- Filled by JS -->
         </div>
       </div>
 
