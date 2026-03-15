@@ -349,12 +349,61 @@ const App = {
     document.querySelectorAll('#role-toggle button').forEach(b => {
       b.classList.toggle('active', b.dataset.role === role);
     });
-    // Show password field only for teachers
+
     const pwGroup = document.getElementById('password-group');
-    if (pwGroup) {
-      pwGroup.style.display = role === 'teacher' ? '' : 'none';
-      const pwInput = document.getElementById('teacher-password');
-      if (pwInput) pwInput.required = (role === 'teacher');
+    const pwConfirmGroup = document.getElementById('password-confirm-group');
+    const loginHint = document.getElementById('login-hint');
+    const loginError = document.getElementById('login-error');
+
+    if (role === 'teacher') {
+      pwGroup.style.display = '';
+      document.getElementById('teacher-password').required = true;
+      // Check if this teacher email is already registered
+      this._updateTeacherFields();
+    } else {
+      pwGroup.style.display = 'none';
+      pwConfirmGroup.style.display = 'none';
+      document.getElementById('teacher-password').required = false;
+      document.getElementById('teacher-password-confirm').required = false;
+      loginHint.classList.remove('show');
+    }
+    loginError.classList.remove('show');
+  },
+
+  /** Check email field and show appropriate teacher UI (new vs existing account) */
+  _updateTeacherFields() {
+    if (currentRole !== 'teacher') return;
+
+    const email = (document.getElementById('school-email').value || '').trim().toLowerCase();
+    const pwConfirmGroup = document.getElementById('password-confirm-group');
+    const pwConfirm = document.getElementById('teacher-password-confirm');
+    const loginHint = document.getElementById('login-hint');
+    const pwLabel = document.getElementById('password-label');
+
+    if (!email || !email.endsWith('@cga.school') || email.endsWith('@student.cga.school')) {
+      pwConfirmGroup.style.display = 'none';
+      pwConfirm.required = false;
+      loginHint.classList.remove('show');
+      return;
+    }
+
+    const teacherPasswords = JSON.parse(localStorage.getItem('ba_teacher_passwords') || '{}');
+    const emailKey = email.replace(/[^a-z0-9]/g, '_');
+
+    if (teacherPasswords[emailKey]) {
+      // Existing teacher
+      pwLabel.textContent = 'Password';
+      pwConfirmGroup.style.display = 'none';
+      pwConfirm.required = false;
+      loginHint.className = 'login-hint show existing-account';
+      loginHint.textContent = 'Welcome back. Enter your password to sign in.';
+    } else {
+      // New teacher — show confirm password
+      pwLabel.textContent = 'Create a Password';
+      pwConfirmGroup.style.display = '';
+      pwConfirm.required = true;
+      loginHint.className = 'login-hint show new-account';
+      loginHint.textContent = 'First time? Create a password to set up your teacher account.';
     }
   },
 
@@ -397,10 +446,16 @@ const App = {
         return;
       }
 
-      // ── Teacher password verification ──
+      // ── Teacher password ──
       const password = document.getElementById('teacher-password').value;
       if (!password) {
         loginError.textContent = 'Please enter your password.';
+        loginError.classList.add('show');
+        return;
+      }
+
+      if (password.length < 4) {
+        loginError.textContent = 'Password must be at least 4 characters.';
         loginError.classList.add('show');
         return;
       }
@@ -410,24 +465,29 @@ const App = {
       const pwHash = await hashPassword(password);
 
       if (teacherPasswords[emailKey]) {
-        // Existing teacher — verify password
+        // Existing teacher — verify
         if (teacherPasswords[emailKey] !== pwHash) {
           loginError.textContent = 'Incorrect password.';
           loginError.classList.add('show');
           return;
         }
       } else {
-        // First-time teacher — register this password
+        // New teacher — check confirm password matches
+        const confirmPw = document.getElementById('teacher-password-confirm').value;
+        if (password !== confirmPw) {
+          loginError.textContent = 'Passwords do not match. Please re-enter.';
+          loginError.classList.add('show');
+          return;
+        }
+        // Register
         teacherPasswords[emailKey] = pwHash;
         localStorage.setItem('ba_teacher_passwords', JSON.stringify(teacherPasswords));
-        showToast('Teacher account created. Your password has been set.', 'success');
+        showToast('Teacher account created successfully.', 'success');
       }
     }
 
     // Derive display name from email
     const displayName = nameFromEmail(email);
-
-    // Use email (sanitised) as the unique ID
     const userId = email.replace(/[^a-z0-9]/g, '_');
     currentUser = { firstName: displayName, email: email, id: userId };
 
