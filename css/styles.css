@@ -89,7 +89,10 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: transparent;
+  background:
+    radial-gradient(ellipse 600px 400px at 10% 20%, rgba(255,222,66,0.08), transparent),
+    radial-gradient(ellipse 500px 500px at 90% 80%, rgba(83,203,243,0.06), transparent),
+    radial-gradient(ellipse 400px 300px at 50% 50%, rgba(84,120,255,0.04), transparent);
   pointer-events: none;
 }
 
@@ -192,7 +195,10 @@ p { color: var(--text-secondary); }
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 800px 600px at 30% 20%, rgba(255,222,66,0.12), transparent),
+    radial-gradient(ellipse 600px 500px at 70% 70%, rgba(84,120,255,0.10), transparent),
+    var(--bg);
 }
 
 #login-screen.active {
@@ -203,7 +209,7 @@ p { color: var(--text-secondary); }
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   padding: 48px 40px;
-  max-width: 520px;
+  max-width: 440px;
   width: 100%;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--border);
@@ -214,7 +220,7 @@ p { color: var(--text-secondary); }
 .login-icon {
   width: 72px;
   height: 72px;
-  background: var(--navy);
+  background: linear-gradient(135deg, var(--navy), var(--blue));
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -223,15 +229,6 @@ p { color: var(--text-secondary); }
   font-size: 32px;
   color: white;
   box-shadow: var(--shadow-glow-blue);
-}
-
-.login-mascot-img {
-  display: block;
-  width: 420px;
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto 20px;
-  border-radius: var(--radius-lg);
 }
 
 .login-card h1 {
@@ -254,6 +251,23 @@ p { color: var(--text-secondary); }
   font-weight: 600;
   font-size: 0.78rem;
   margin-top: 6px;
+}
+
+.login-error {
+  display: none;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #991B1B;
+  background: var(--error-bg);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.login-error.show {
+  display: block;
 }
 
 .input-group {
@@ -346,7 +360,7 @@ p { color: var(--text-secondary); }
 }
 
 .btn-primary {
-  background: var(--navy);
+  background: linear-gradient(135deg, var(--navy), var(--blue));
   color: white;
   height: 50px;
   box-shadow: var(--shadow-md), 0 2px 8px rgba(17,31,162,0.2);
@@ -436,27 +450,21 @@ p { color: var(--text-secondary); }
   gap: 12px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 2.2rem;
+  font-size: 1.1rem;
   color: var(--navy);
   text-decoration: none;
 }
 
 .nav-brand .brand-icon {
-  width: 50px;
-  height: 50px;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   color: white;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.nav-brand .brand-icon img {
-  height: 100%;
-  width: auto;
-  display: block;
 }
 
 .nav-links {
@@ -467,7 +475,7 @@ p { color: var(--text-secondary); }
 
 .nav-link {
   padding: 8px 16px;
-  font-size: 1.2rem;
+  font-size: 0.88rem;
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
@@ -500,24 +508,24 @@ p { color: var(--text-secondary); }
   width: 34px;
   height: 34px;
   border-radius: var(--radius-full);
-  background: #FFDE42;
+  background: linear-gradient(135deg, var(--yellow), var(--sky));
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 0.82rem;
   color: var(--navy);
 }
 
 .nav-username {
-  font-size: 1.2rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .btn-logout {
   padding: 6px 12px;
-  font-size: 1.2rem;
+  font-size: 0.78rem;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -543,7 +551,7 @@ p { color: var(--text-secondary); }
 }
 
 .dashboard-header p {
-  font-size: 0.88rem;
+  font-size: 1rem;
 }
 
 .stat-grid {
@@ -604,10 +612,10 @@ p { color: var(--text-secondary); }
   transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.stat-bar-fill.yellow { background: var(--yellow); }
-.stat-bar-fill.sky { background: var(--sky); }
-.stat-bar-fill.blue { background: var(--blue); }
-.stat-bar-fill.navy { background: var(--navy); }
+.stat-bar-fill.yellow { background: linear-gradient(90deg, var(--yellow), var(--yellow-dark)); }
+.stat-bar-fill.sky { background: linear-gradient(90deg, var(--sky), var(--sky-dark)); }
+.stat-bar-fill.blue { background: linear-gradient(90deg, var(--blue), var(--blue-dark)); }
+.stat-bar-fill.navy { background: linear-gradient(90deg, var(--navy), var(--navy-light)); }
 
 /* Category progress grid */
 .category-grid {
@@ -642,11 +650,11 @@ p { color: var(--text-secondary); }
 .category-card[data-cat="distributive"]::before { background: var(--sky); }
 .category-card[data-cat="absorption"]::before { background: var(--blue); }
 .category-card[data-cat="identity_null"]::before { background: var(--navy); }
-.category-card[data-cat="commutative_associative"]::before { background: var(--yellow); }
-.category-card[data-cat="inverse_complement"]::before { background: var(--sky); }
-.category-card[data-cat="double_negation"]::before { background: var(--blue); }
-.category-card[data-cat="multi_step"]::before { background: var(--navy); }
-.category-card[data-cat="cie_exam"]::before { background: var(--yellow); }
+.category-card[data-cat="commutative_associative"]::before { background: linear-gradient(90deg, var(--yellow), var(--sky)); }
+.category-card[data-cat="inverse_complement"]::before { background: linear-gradient(90deg, var(--sky), var(--blue)); }
+.category-card[data-cat="double_negation"]::before { background: linear-gradient(90deg, var(--blue), var(--navy)); }
+.category-card[data-cat="multi_step"]::before { background: linear-gradient(90deg, var(--navy), var(--yellow)); }
+.category-card[data-cat="cie_exam"]::before { background: linear-gradient(90deg, var(--yellow), var(--blue)); }
 
 .category-card:hover {
   box-shadow: var(--shadow-md);
@@ -681,7 +689,7 @@ p { color: var(--text-secondary); }
 
 .cat-name {
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: var(--text-primary);
   margin-bottom: 4px;
 }
@@ -709,7 +717,7 @@ p { color: var(--text-secondary); }
 .cat-progress-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  background: var(--blue);
+  background: linear-gradient(90deg, var(--blue), var(--sky));
   transition: width 0.6s ease;
 }
 
@@ -807,7 +815,7 @@ p { color: var(--text-secondary); }
   gap: 6px;
   width: 100%;
   aspect-ratio: 16 / 10;
-  background: var(--bg);
+  background: linear-gradient(135deg, var(--bg), rgba(84,120,255,0.04));
   border: 2px dashed var(--border);
   border-radius: var(--radius-md);
   cursor: default;
@@ -885,7 +893,7 @@ p { color: var(--text-secondary); }
   gap: 20px;
   margin-bottom: 28px;
   padding: 24px 28px;
-  background: rgba(255,222,66,0.10);
+  background: linear-gradient(135deg, rgba(255,222,66,0.12), rgba(84,120,255,0.08));
   border: 1px solid rgba(255,222,66,0.3);
   border-radius: var(--radius-xl);
   grid-column: 1 / -1;
@@ -922,7 +930,7 @@ p { color: var(--text-secondary); }
   border-radius: var(--radius-lg);
   border: 3px solid var(--bg-card);
   box-shadow: var(--shadow-md);
-  background: var(--yellow-light);
+  background: linear-gradient(135deg, var(--yellow-light), var(--sky-light));
   font-size: 2.2rem;
   margin: 0 auto;
 }
@@ -1081,7 +1089,7 @@ p { color: var(--text-secondary); }
 }
 
 .exercise-expression {
-  background: rgba(84,120,255,0.04);
+  background: linear-gradient(135deg, rgba(17,31,162,0.03), rgba(84,120,255,0.05));
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px 24px;
@@ -1197,6 +1205,94 @@ p { color: var(--text-secondary); }
   display: block;
 }
 
+/* ── Stylus-Friendly Input Styles ──
+   Ensures text inputs and textareas work smoothly with
+   iPadOS Scribble, Windows Ink, ChromeOS handwriting,
+   and Samsung S Pen. No custom canvas needed. */
+
+.working-textarea,
+.answer-input {
+  /* Allow OS handwriting recognition — do NOT set touch-action: none */
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
+  /* Larger hit target for stylus */
+  min-height: 56px;
+}
+
+.working-textarea {
+  /* Extra tall for comfortable stylus writing */
+  min-height: 160px;
+}
+
+/* Subtle visual hint on stylus/touch-capable devices */
+@media (pointer: coarse) {
+  .working-textarea,
+  .answer-input {
+    font-size: 1.1rem;
+    line-height: 1.8;
+  }
+  .working-textarea {
+    min-height: 200px;
+  }
+}
+
+/* ── Live CIE Notation Preview ── */
+.live-preview {
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(84,120,255,0.03);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+  margin-top: -8px;
+}
+
+.live-preview.visible {
+  max-height: 600px;
+  opacity: 1;
+  margin-top: 0;
+}
+
+.live-preview-label {
+  padding: 6px 14px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+  background: rgba(84,120,255,0.05);
+  border-bottom: 1px solid var(--border);
+}
+
+.live-preview-content {
+  padding: 14px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 2;
+  color: var(--navy);
+  min-height: 24px;
+  word-break: break-word;
+}
+
+.live-preview-content .ol {
+  border-top-width: 2.2px;
+  padding-top: 1px;
+}
+
+.live-preview-inline {
+  margin-top: -8px;
+}
+
+.live-preview-answer {
+  font-size: 1.15rem;
+  padding: 12px 18px;
+  line-height: 1.6;
+}
+
+
 .answer-input:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 4px rgba(84,120,255,0.12);
@@ -1272,7 +1368,7 @@ p { color: var(--text-secondary); }
 
 .exercise-progress-fill {
   height: 100%;
-  background: var(--blue);
+  background: linear-gradient(90deg, var(--yellow), var(--sky), var(--blue));
   border-radius: var(--radius-full);
   transition: width 0.5s ease;
 }
@@ -1404,13 +1500,14 @@ p { color: var(--text-secondary); }
 .student-avatar-sm {
   width: 34px; height: 34px;
   border-radius: var(--radius-full);
-  background: var(--yellow);
+  background: linear-gradient(135deg, var(--yellow), var(--sky));
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.72rem; color: var(--navy); flex-shrink: 0;
 }
 
 .student-info { flex: 1; min-width: 0; }
 .student-name { font-weight: 600; font-size: 0.88rem; color: var(--text-primary); }
+.student-email { font-weight: 400; font-size: 0.72rem; color: var(--text-muted); display: block; font-family: var(--font-mono); }
 .student-stats-mini { font-size: 0.75rem; color: var(--text-muted); }
 .student-last-active { color: var(--blue); }
 
@@ -1499,7 +1596,7 @@ p { color: var(--text-secondary); }
 
 /* Suggestion box */
 .suggestion-box {
-  background: rgba(255,222,66,0.08);
+  background: linear-gradient(135deg, rgba(255,222,66,0.08), rgba(84,120,255,0.06));
   border: 1px solid rgba(255,222,66,0.3);
   border-radius: var(--radius-lg);
   padding: 24px;
@@ -1519,6 +1616,52 @@ p { color: var(--text-secondary); }
 
 /* Import/Export */
 .import-export-area { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* Email whitelist manager */
+.email-manager-actions { margin-bottom: 16px; }
+
+.email-add-row {
+  display: flex; gap: 8px; margin-bottom: 10px;
+}
+.email-add-row input { flex: 1; }
+
+.email-upload-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+.email-list {
+  max-height: 300px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+
+.email-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  font-size: 0.85rem; font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+.email-row:last-child { border-bottom: none; }
+.email-row:hover { background: rgba(84,120,255,0.03); }
+
+.email-row .email-status {
+  font-size: 0.68rem; font-weight: 700; padding: 2px 8px;
+  border-radius: var(--radius-full); text-transform: uppercase; margin-left: 8px;
+}
+.email-status.active { background: var(--success-bg); color: #166534; }
+.email-status.pending { background: var(--bg); color: var(--text-muted); }
+
+.email-row-actions { display: flex; gap: 4px; align-items: center; }
+
+.email-remove-btn {
+  background: none; border: none; font-size: 0.85rem;
+  cursor: pointer; color: var(--text-muted); padding: 2px 6px;
+  border-radius: var(--radius-sm); transition: var(--transition-fast);
+}
+.email-remove-btn:hover { background: var(--error-bg); color: var(--error); }
+
+.email-empty {
+  padding: 24px; text-align: center; font-size: 0.85rem; color: var(--text-muted);
+}
 
 /* Teacher responsive */
 @media (max-width: 900px) {
@@ -1651,7 +1794,7 @@ p { color: var(--text-secondary); }
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .container { padding: 0 16px; }
-  h1 { font-size: 1.2rem; }
+  h1 { font-size: 1.625rem; }
   h2 { font-size: 1.375rem; }
 
   .login-card { padding: 32px 24px; }
