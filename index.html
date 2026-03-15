@@ -52,12 +52,17 @@
       <form id="login-form" onsubmit="App.login(event)">
         <div class="input-group">
           <label for="school-email">School Email Address</label>
-          <input type="email" id="school-email" placeholder="e.g. alex.chen@student.cga.school" required autocomplete="email">
+          <input type="email" id="school-email" placeholder="e.g. alex.chen@student.cga.school" required autocomplete="email" oninput="App._updateTeacherFields()">
         </div>
         <div class="input-group" id="password-group" style="display:none;">
           <label for="teacher-password" id="password-label">Password</label>
           <input type="password" id="teacher-password" placeholder="Enter your password" autocomplete="current-password">
         </div>
+        <div class="input-group" id="password-confirm-group" style="display:none;">
+          <label for="teacher-password-confirm">Confirm Password</label>
+          <input type="password" id="teacher-password-confirm" placeholder="Re-enter your password" autocomplete="new-password">
+        </div>
+        <div class="login-hint" id="login-hint"></div>
         <div class="login-error" id="login-error"></div>
         <button type="submit" class="btn btn-primary btn-lg btn-full" style="margin-top:8px;">
           Enter →
@@ -244,7 +249,7 @@
 
   <footer>
     <h6>&copy Crimson Global Academy 2026</h6>
-    <h6>Cambridge A2 Computer Science 9618</h6>
+    <h6>Cambrdige A2 Computer Science 9618</h6>
   </footer>
   <script src="scripts/app.js"></script>
 </body>
