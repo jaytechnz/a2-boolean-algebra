@@ -187,205 +187,51 @@ function renderTypedWorking(raw) {
 
 
 /* ══════════════════════════════════════════
-   HANDWRITING / STYLUS SUPPORT
-
-   Uses the browser Handwriting Recognition API (Chrome 99+) where available.
-   Falls back to a drawing canvas that saves strokes as an image.
+   STYLUS / HANDWRITING SUPPORT
+   
+   No custom canvas needed. Modern devices (iPadOS Scribble, Windows Ink,
+   ChromeOS, Samsung S Pen) convert stylus strokes to text natively in
+   standard <input> and <textarea> elements.
+   
+   This module ensures the live CIE preview always updates, regardless of
+   how text enters the field: keyboard, stylus handwriting, paste, voice,
+   autofill, or IME composition.
    ══════════════════════════════════════════ */
 
-const Handwriting = {
-  _recognizer: null,
-  _available: false,
+const StylusSupport = {
+  _pollId: null,
+  _lastWorkingVal: '',
+  _lastAnswerVal: '',
 
-  async init() {
-    // Check for Handwriting Recognition API (Chromium 99+)
-    if ('createHandwritingRecognizer' in navigator) {
-      try {
-        this._recognizer = await navigator.createHandwritingRecognizer({ languages: ['en'] });
-        this._available = true;
-      } catch (e) { /* API not supported on this device */ }
-    }
-  },
+  /** Start watching the practice input fields for any changes */
+  startPolling() {
+    this.stopPolling();
+    this._lastWorkingVal = '';
+    this._lastAnswerVal = '';
+    this._pollId = setInterval(() => {
+      const working = document.getElementById('working-input');
+      const answer = document.getElementById('answer-input');
+      let changed = false;
 
-  /** Create a drawing canvas overlay for a specific input/textarea */
-  createCanvas(targetId) {
-    // Remove existing canvas if any
-    const existing = document.getElementById('hw-overlay');
-    if (existing) existing.remove();
-
-    const target = document.getElementById(targetId);
-    if (!target) return;
-
-    const overlay = document.createElement('div');
-    overlay.id = 'hw-overlay';
-    overlay.className = 'hw-overlay';
-    overlay.innerHTML = `
-      <div class="hw-panel">
-        <div class="hw-header">
-          <span class="hw-title">✏️ Draw with stylus or finger</span>
-          <div class="hw-actions">
-            <button class="btn btn-secondary btn-sm" onclick="Handwriting.clearCanvas()">Clear</button>
-            <button class="btn btn-secondary btn-sm" onclick="Handwriting.closeCanvas()">Cancel</button>
-            <button class="btn btn-primary btn-sm" onclick="Handwriting.insertRecognised('${targetId}')">Insert ✓</button>
-          </div>
-        </div>
-        <canvas id="hw-canvas" class="hw-canvas" width="700" height="200"></canvas>
-        <div class="hw-recognised" id="hw-recognised">
-          <span class="hw-recognised-label">Recognised:</span>
-          <span class="hw-recognised-text" id="hw-recognised-text">Draw something above...</span>
-        </div>
-        <div class="hw-char-palette">
-          <span class="hw-palette-label">Quick insert:</span>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'A')">A</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'B')">B</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'C')">C</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', 'D')">D</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '+')">+</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '.')">·</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', \"'\")">NOT (')</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '(')"> ( </button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', ')')"> ) </button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '0')">0</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '1')">1</button>
-          <button class="hw-char-btn" onclick="Handwriting.insertChar('${targetId}', '\\n')">↵</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // Set up canvas drawing
-    const canvas = document.getElementById('hw-canvas');
-    const ctx = canvas.getContext('2d');
-
-    // High-DPI
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#111FA2';
-
-    let drawing = false;
-    let points = [];
-    let allStrokes = [];
-    let drawingObj = null;
-
-    const getPos = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const touch = e.touches ? e.touches[0] : e;
-      return { x: touch.clientX - r.left, y: touch.clientY - r.top, t: Date.now() };
-    };
-
-    const startDraw = (e) => {
-      e.preventDefault();
-      drawing = true;
-      points = [getPos(e)];
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-    };
-
-    const moveDraw = (e) => {
-      if (!drawing) return;
-      e.preventDefault();
-      const p = getPos(e);
-      points.push(p);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-    };
-
-    const endDraw = async (e) => {
-      if (!drawing) return;
-      drawing = false;
-      if (points.length > 1) {
-        allStrokes.push([...points]);
-        // Try handwriting recognition if available
-        if (this._available && this._recognizer) {
-          try {
-            if (!drawingObj) drawingObj = this._recognizer.startDrawing();
-            drawingObj.addStroke({ points: points.map(p => ({ x: p.x, y: p.y, t: p.t })) });
-            const results = await drawingObj.getPrediction();
-            if (results && results.length > 0) {
-              document.getElementById('hw-recognised-text').textContent = results[0].text;
-            }
-          } catch (err) { /* Recognition failed silently */ }
-        }
+      if (working && working.value !== this._lastWorkingVal) {
+        this._lastWorkingVal = working.value;
+        changed = true;
       }
-    };
+      if (answer && answer.value !== this._lastAnswerVal) {
+        this._lastAnswerVal = answer.value;
+        changed = true;
+      }
 
-    canvas.addEventListener('pointerdown', startDraw);
-    canvas.addEventListener('pointermove', moveDraw);
-    canvas.addEventListener('pointerup', endDraw);
-    canvas.addEventListener('pointerleave', endDraw);
-    canvas.style.touchAction = 'none';
-
-    this._currentStrokes = allStrokes;
-    this._drawingObj = drawingObj;
-    this._canvas = canvas;
-    this._ctx = ctx;
-
-    // Focus the overlay
-    setTimeout(() => overlay.classList.add('show'), 10);
+      if (changed && typeof Practice !== 'undefined' && Practice.updatePreviews) {
+        Practice.updatePreviews();
+      }
+    }, 250); // Check 4 times per second — responsive but lightweight
   },
 
-  clearCanvas() {
-    if (this._canvas && this._ctx) {
-      const dpr = window.devicePixelRatio || 1;
-      this._ctx.clearRect(0, 0, this._canvas.width / dpr, this._canvas.height / dpr);
-    }
-    this._currentStrokes = [];
-    this._drawingObj = null;
-    const recText = document.getElementById('hw-recognised-text');
-    if (recText) recText.textContent = 'Draw something above...';
-  },
-
-  closeCanvas() {
-    const overlay = document.getElementById('hw-overlay');
-    if (overlay) {
-      overlay.classList.remove('show');
-      setTimeout(() => overlay.remove(), 200);
-    }
-  },
-
-  insertRecognised(targetId) {
-    const recText = document.getElementById('hw-recognised-text');
-    const recognised = recText ? recText.textContent : '';
-    if (recognised && recognised !== 'Draw something above...') {
-      this.insertChar(targetId, recognised);
-    }
-    this.closeCanvas();
-  },
-
-  insertChar(targetId, char) {
-    const el = document.getElementById(targetId);
-    if (!el) return;
-
-    // Insert at cursor position
-    const start = el.selectionStart || el.value.length;
-    const end = el.selectionEnd || el.value.length;
-    el.value = el.value.substring(0, start) + char + el.value.substring(end);
-    el.selectionStart = el.selectionEnd = start + char.length;
-    el.focus();
-
-    // Trigger preview update
-    if (typeof Practice !== 'undefined' && Practice.updatePreviews) {
-      Practice.updatePreviews();
-    }
-
-    // Close overlay if it was a quick-insert from palette while overlay is open
-    // (don't close — let them keep inserting)
+  stopPolling() {
+    if (this._pollId) { clearInterval(this._pollId); this._pollId = null; }
   }
 };
-
-// Init handwriting on load
-document.addEventListener('DOMContentLoaded', () => { Handwriting.init(); });
 
 
 /* ══════════════════════════════════════════
@@ -478,6 +324,24 @@ function checkExistingSession() {
 // ══════════════════════════════════════════
 //  APP NAMESPACE
 // ══════════════════════════════════════════
+
+/** Derive a display name from an email address.
+ *  e.g. "alex.chen@student.cga.school" → "Alex Chen"
+ *       "j.smith@cga.school" → "J Smith"
+ */
+function nameFromEmail(email) {
+  if (!email) return 'Unknown';
+  const local = email.split('@')[0]; // "alex.chen"
+  return local.split(/[._-]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/** Hash a password string using SHA-256 (async, returns hex string) */
+async function hashPassword(password) {
+  const data = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const App = {
 
   setRole(role) {
@@ -485,16 +349,22 @@ const App = {
     document.querySelectorAll('#role-toggle button').forEach(b => {
       b.classList.toggle('active', b.dataset.role === role);
     });
+    // Show password field only for teachers
+    const pwGroup = document.getElementById('password-group');
+    if (pwGroup) {
+      pwGroup.style.display = role === 'teacher' ? '' : 'none';
+      const pwInput = document.getElementById('teacher-password');
+      if (pwInput) pwInput.required = (role === 'teacher');
+    }
   },
 
-  login(e) {
+  async login(e) {
     e.preventDefault();
-    const first = document.getElementById('first-name').value.trim();
     const email = document.getElementById('school-email').value.trim().toLowerCase();
     const loginError = document.getElementById('login-error');
     loginError.classList.remove('show');
 
-    if (!first || !email) return;
+    if (!email) return;
 
     // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -513,7 +383,7 @@ const App = {
         loginError.classList.add('show');
         return;
       }
-      // ── Whitelist check — student must be pre-approved by teacher ──
+      // Whitelist check
       const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
       if (!whitelist.includes(email)) {
         loginError.textContent = 'Your email has not been approved by your teacher. Please contact your teacher to request access.';
@@ -526,25 +396,48 @@ const App = {
         loginError.classList.add('show');
         return;
       }
+
+      // ── Teacher password verification ──
+      const password = document.getElementById('teacher-password').value;
+      if (!password) {
+        loginError.textContent = 'Please enter your password.';
+        loginError.classList.add('show');
+        return;
+      }
+
+      const teacherPasswords = JSON.parse(localStorage.getItem('ba_teacher_passwords') || '{}');
+      const emailKey = email.replace(/[^a-z0-9]/g, '_');
+      const pwHash = await hashPassword(password);
+
+      if (teacherPasswords[emailKey]) {
+        // Existing teacher — verify password
+        if (teacherPasswords[emailKey] !== pwHash) {
+          loginError.textContent = 'Incorrect password.';
+          loginError.classList.add('show');
+          return;
+        }
+      } else {
+        // First-time teacher — register this password
+        teacherPasswords[emailKey] = pwHash;
+        localStorage.setItem('ba_teacher_passwords', JSON.stringify(teacherPasswords));
+        showToast('Teacher account created. Your password has been set.', 'success');
+      }
     }
+
+    // Derive display name from email
+    const displayName = nameFromEmail(email);
 
     // Use email (sanitised) as the unique ID
     const userId = email.replace(/[^a-z0-9]/g, '_');
-    currentUser = { firstName: first, email: email, id: userId };
+    currentUser = { firstName: displayName, email: email, id: userId };
 
     localStorage.setItem('ba_session', JSON.stringify({ user: currentUser, role: currentRole }));
 
     if (currentRole === 'student') {
       const existing = localStorage.getItem(`ba_progress_${userId}`);
       if (!existing) {
-        const progress = { userId, firstName: first, email: email, exercises: {}, startedAt: new Date().toISOString() };
+        const progress = { userId, firstName: displayName, email: email, exercises: {}, startedAt: new Date().toISOString() };
         localStorage.setItem(`ba_progress_${userId}`, JSON.stringify(progress));
-      } else {
-        const prog = JSON.parse(existing);
-        if (prog.firstName !== first) {
-          prog.firstName = first;
-          localStorage.setItem(`ba_progress_${userId}`, JSON.stringify(prog));
-        }
       }
       const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
       if (!roster.includes(userId)) {
@@ -925,12 +818,9 @@ const Practice = {
         <div class="exercise-question">${renderCIE(ex.question)}</div>
         <div class="exercise-expression">${renderCIE(ex.expression)}</div>
 
-        <div class="working-label-row">
-          <label class="working-label" style="margin-bottom:0;">Show your working ${workingRequired
+        <label class="working-label">Show your working ${workingRequired
             ? '<span class="required">* required</span>'
             : '<span style="color:var(--text-muted);font-size:0.7rem;text-transform:none;letter-spacing:0;">(optional for this type of question)</span>'}</label>
-          <button class="btn-stylus" onclick="Handwriting.createCanvas('working-input')" title="Draw with stylus">✏️ Draw</button>
-        </div>
         <textarea class="working-textarea" id="working-input"
           oninput="Practice.updatePreviews()"
           data-required="${workingRequired}"
@@ -944,10 +834,7 @@ const Practice = {
         </div>
         <div class="working-warning" id="working-warning"></div>
 
-        <div class="working-label-row">
-          <label class="working-label" style="margin-bottom:0;">Final answer</label>
-          <button class="btn-stylus" onclick="Handwriting.createCanvas('answer-input')" title="Draw with stylus">✏️ Draw</button>
-        </div>
+        <label class="working-label">Final answer</label>
         <div class="answer-input-group">
           <input type="text" class="answer-input" id="answer-input"
             placeholder="Type your final simplified answer (e.g. A'.B + C)"
@@ -967,12 +854,13 @@ const Practice = {
         </div>
         <div id="feedback-area">${feedbackHTML}</div>
         <div style="margin-top:12px;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm);font-size:0.75rem;color:var(--text-muted);">
-          <strong>How to type CIE notation:</strong> &nbsp;
-          AND → type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">.</code> &nbsp;
-          OR → type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">+</code> &nbsp;
-          NOT → type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">'</code> after a variable or <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">)</code> &nbsp;
-          — the preview below will show the overbar: e.g. type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">A'</code> → ${renderCIE('¬A')}, &nbsp;
+          <strong>How to enter CIE notation:</strong> &nbsp;
+          AND → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">.</code> &nbsp;
+          OR → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">+</code> &nbsp;
+          NOT → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">'</code> after a variable or <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">)</code> &nbsp;
+          e.g. type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">A'</code> → ${renderCIE('¬A')}, &nbsp;
           <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">(A+B)'</code> → ${renderCIE('¬(A+B)')}
+          <br>✏️ <em>You can also write directly in the text boxes with a stylus — your device will convert handwriting to text automatically.</em>
         </div>
       </div>
       <div class="exercise-nav">
@@ -987,6 +875,9 @@ const Practice = {
 
     // Trigger initial preview render
     this.updatePreviews();
+
+    // Start polling for stylus/handwriting input that may bypass oninput
+    StylusSupport.startPolling();
 
     document.getElementById('streak-display').innerHTML = `🔥 ${streak} streak`;
     if (streak >= 3) document.getElementById('streak-display').classList.add('active');
@@ -1667,6 +1558,24 @@ const Teacher = {
     this.selectedStudent = null; showToast('Student removed.', 'info'); this.render();
   },
 
+  async resetTeacherPassword() {
+    const newPw = prompt('Enter your new teacher password:');
+    if (!newPw || newPw.length < 4) {
+      showToast('Password must be at least 4 characters.', 'error');
+      return;
+    }
+    const confirm2 = prompt('Confirm your new password:');
+    if (newPw !== confirm2) {
+      showToast('Passwords do not match.', 'error');
+      return;
+    }
+    const teacherPasswords = JSON.parse(localStorage.getItem('ba_teacher_passwords') || '{}');
+    const emailKey = currentUser.email.replace(/[^a-z0-9]/g, '_');
+    teacherPasswords[emailKey] = await hashPassword(newPw);
+    localStorage.setItem('ba_teacher_passwords', JSON.stringify(teacherPasswords));
+    showToast('Password updated successfully.', 'success');
+  },
+
   exportAllData() {
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
     const allData = {}; roster.forEach(uid => { const p = getProgress(uid); if (p) allData[uid] = p; });
@@ -1685,15 +1594,16 @@ const Teacher = {
 
   generateDemoData() {
     if (!confirm('Generate 8 demo students with randomised progress? Their emails will also be added to the approved list.')) return;
-    const demoStudents = [
-      ['Emma','emma.watson@student.cga.school'],['James','james.liu@student.cga.school'],['Sophie','sophie.taylor@student.cga.school'],['Oliver','oliver.khan@student.cga.school'],
-      ['Mia','mia.patel@student.cga.school'],['Noah','noah.smith@student.cga.school'],['Ava','ava.chen@student.cga.school'],['Liam','liam.brown@student.cga.school']
+    const demoEmails = [
+      'emma.watson@student.cga.school','james.liu@student.cga.school','sophie.taylor@student.cga.school','oliver.khan@student.cga.school',
+      'mia.patel@student.cga.school','noah.smith@student.cga.school','ava.chen@student.cga.school','liam.brown@student.cga.school'
     ];
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
     const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
 
-    demoStudents.forEach(([first, email]) => {
+    demoEmails.forEach(email => {
       const uid = email.replace(/[^a-z0-9]/g, '_');
+      const displayName = nameFromEmail(email);
       if (!whitelist.includes(email)) whitelist.push(email);
       if (roster.includes(uid)) return;
       roster.push(uid);
@@ -1701,7 +1611,7 @@ const Teacher = {
       const shuffled = [...EXERCISES].sort(() => Math.random() - 0.5).slice(0, num);
       const strengths = {}; Object.keys(CATEGORIES).forEach(k => { strengths[k] = 0.3 + Math.random() * 0.6; });
       shuffled.forEach(ex => { const chance = strengths[ex.category] - (ex.difficulty - 1) * 0.12; const correct = Math.random() < chance; exercises[ex.id] = { status: correct ? 'correct' : 'incorrect', attempts: correct ? 1 : 1 + Math.floor(Math.random() * 3), hintUsed: !correct && Math.random() < 0.4, working: correct ? `= step [${ex.lawUsed}]\n= ${ex.answer}` : '', timestamp: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString() }; });
-      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: first, email: email, exercises, startedAt: new Date().toISOString(), lastActive: new Date(Date.now() - Math.random() * 3 * 86400000).toISOString() }));
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: displayName, email: email, exercises, startedAt: new Date().toISOString(), lastActive: new Date(Date.now() - Math.random() * 3 * 86400000).toISOString() }));
     });
 
     localStorage.setItem('ba_roster', JSON.stringify(roster));
