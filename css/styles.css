@@ -264,6 +264,32 @@ p { color: var(--text-secondary); }
   display: block;
 }
 
+.login-hint {
+  display: none;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.login-hint.show {
+  display: block;
+}
+
+.login-hint.new-account {
+  color: #166534;
+  background: var(--success-bg);
+  border: 1px solid rgba(34,197,94,0.2);
+}
+
+.login-hint.existing-account {
+  color: var(--navy);
+  background: rgba(84,120,255,0.06);
+  border: 1px solid rgba(84,120,255,0.15);
+}
+
 .input-group {
   position: relative;
   margin-bottom: 16px;
