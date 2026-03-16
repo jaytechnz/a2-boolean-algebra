@@ -203,7 +203,6 @@ const StylusSupport = {
   _lastWorkingVal: '',
   _lastAnswerVal: '',
 
-  /** Start watching the practice input fields for any changes */
   startPolling() {
     this.stopPolling();
     this._lastWorkingVal = '';
@@ -212,24 +211,72 @@ const StylusSupport = {
       const working = document.getElementById('working-input');
       const answer = document.getElementById('answer-input');
       let changed = false;
-
-      if (working && working.value !== this._lastWorkingVal) {
-        this._lastWorkingVal = working.value;
-        changed = true;
-      }
-      if (answer && answer.value !== this._lastAnswerVal) {
-        this._lastAnswerVal = answer.value;
-        changed = true;
-      }
-
-      if (changed && typeof Practice !== 'undefined' && Practice.updatePreviews) {
-        Practice.updatePreviews();
-      }
-    }, 250); // Check 4 times per second — responsive but lightweight
+      if (working && working.value !== this._lastWorkingVal) { this._lastWorkingVal = working.value; changed = true; }
+      if (answer && answer.value !== this._lastAnswerVal) { this._lastAnswerVal = answer.value; changed = true; }
+      if (changed && typeof Practice !== 'undefined' && Practice.updatePreviews) Practice.updatePreviews();
+    }, 250);
   },
 
   stopPolling() {
     if (this._pollId) { clearInterval(this._pollId); this._pollId = null; }
+  }
+};
+
+
+/* ══════════════════════════════════════════
+   SHARED WHITELIST
+
+   The approved email list is stored in data/whitelist.json
+   in the GitHub repo, so every device reads the same list.
+
+   On load, the app fetches this file and caches it.
+   Teachers can also add emails locally (stored in localStorage)
+   for immediate use before committing to the repo.
+
+   The "Export for GitHub" button generates the exact
+   whitelist.json file the teacher should commit.
+   ══════════════════════════════════════════ */
+
+const Whitelist = {
+  _serverEmails: [],   // Emails from data/whitelist.json (shared across all devices)
+  _loaded: false,
+
+  /** Fetch the shared whitelist from the server */
+  async load() {
+    try {
+      const resp = await fetch('data/whitelist.json?t=' + Date.now()); // cache-bust
+      if (resp.ok) {
+        const data = await resp.json();
+        this._serverEmails = (data.emails || []).map(e => e.trim().toLowerCase()).filter(Boolean);
+      }
+    } catch (e) {
+      console.warn('Could not load shared whitelist:', e);
+    }
+    this._loaded = true;
+  },
+
+  /** Get the combined list: server + localStorage additions */
+  getAll() {
+    const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    const combined = new Set([...this._serverEmails, ...local]);
+    return [...combined].sort();
+  },
+
+  /** Check if an email is approved (from either source) */
+  isApproved(email) {
+    const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    return this._serverEmails.includes(email) || local.includes(email);
+  },
+
+  /** Check if an email is from the shared server file */
+  isFromServer(email) {
+    return this._serverEmails.includes(email);
+  },
+
+  /** Get only locally-added emails (not in server file) */
+  getLocalOnly() {
+    const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    return local.filter(e => !this._serverEmails.includes(e));
   }
 };
 
@@ -295,7 +342,7 @@ function areCommutativelyEqual(a, b) {
 
 // ── Initialise ──
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadExercises();
+  await Promise.all([loadExercises(), Whitelist.load()]);
   checkExistingSession();
 });
 
@@ -432,9 +479,8 @@ const App = {
         loginError.classList.add('show');
         return;
       }
-      // Whitelist check
-      const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-      if (!whitelist.includes(email)) {
+      // Whitelist check — server file + localStorage
+      if (!Whitelist.isApproved(email)) {
         loginError.textContent = 'Your email has not been approved by your teacher. Please contact your teacher to request access.';
         loginError.classList.add('show');
         return;
@@ -1653,7 +1699,7 @@ const Teacher = {
   },
 
   generateDemoData() {
-    if (!confirm('Generate 8 demo students with randomised progress? Their emails will also be added to the approved list.')) return;
+    if (!confirm('Generate 8 demo students with randomised progress? Their emails will be added to the approved list if not already there.')) return;
     const demoEmails = [
       'emma.watson@student.cga.school','james.liu@student.cga.school','sophie.taylor@student.cga.school','oliver.khan@student.cga.school',
       'mia.patel@student.cga.school','noah.smith@student.cga.school','ava.chen@student.cga.school','liam.brown@student.cga.school'
@@ -1664,7 +1710,8 @@ const Teacher = {
     demoEmails.forEach(email => {
       const uid = email.replace(/[^a-z0-9]/g, '_');
       const displayName = nameFromEmail(email);
-      if (!whitelist.includes(email)) whitelist.push(email);
+      // Only add to local whitelist if not already approved via server or local
+      if (!Whitelist.isApproved(email) && !whitelist.includes(email)) whitelist.push(email);
       if (roster.includes(uid)) return;
       roster.push(uid);
       const exercises = {}, num = 15 + Math.floor(Math.random() * 70);
@@ -1676,7 +1723,7 @@ const Teacher = {
 
     localStorage.setItem('ba_roster', JSON.stringify(roster));
     localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
-    showToast('8 demo students generated with approved emails.', 'success');
+    showToast('8 demo students generated.', 'success');
     this.render();
   },
 
@@ -1685,30 +1732,35 @@ const Teacher = {
   // ══════════════════════════════════════════
 
   renderEmailList() {
-    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    const allEmails = Whitelist.getAll();
     const badge = document.getElementById('email-count-badge');
     const list = document.getElementById('email-list');
     if (!badge || !list) return;
 
-    badge.textContent = whitelist.length;
+    badge.textContent = allEmails.length;
 
-    if (whitelist.length === 0) {
-      list.innerHTML = '<div class="email-empty">No approved emails yet. Add emails above to allow students to log in.</div>';
+    if (allEmails.length === 0) {
+      list.innerHTML = '<div class="email-empty">No approved emails yet. Add emails above, or commit a <code>data/whitelist.json</code> file to your GitHub repo.</div>';
       return;
     }
 
-    // Check which emails have an active student (logged in at least once)
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
     const activeUids = new Set(roster);
 
-    list.innerHTML = whitelist.sort().map(email => {
+    list.innerHTML = allEmails.map(email => {
       const uid = email.replace(/[^a-z0-9]/g, '_');
       const isActive = activeUids.has(uid);
+      const isServer = Whitelist.isFromServer(email);
+      const sourceTag = isServer
+        ? '<span class="email-source server" title="From data/whitelist.json on GitHub">shared</span>'
+        : '<span class="email-source local" title="Added locally on this device only">local</span>';
+
       return `<div class="email-row">
         <span>${email}</span>
         <div class="email-row-actions">
+          ${sourceTag}
           <span class="email-status ${isActive ? 'active' : 'pending'}">${isActive ? 'active' : 'pending'}</span>
-          <button class="email-remove-btn" onclick="Teacher.removeEmail('${email}')" title="Remove">✕</button>
+          ${isServer ? '' : `<button class="email-remove-btn" onclick="Teacher.removeEmail('${email}')" title="Remove">✕</button>`}
         </div>
       </div>`;
     }).join('');
@@ -1729,24 +1781,29 @@ const Teacher = {
       return;
     }
 
-    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    if (whitelist.includes(email)) {
+    if (Whitelist.isApproved(email)) {
       showToast('This email is already approved.', 'info');
       input.value = '';
       return;
     }
 
+    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     whitelist.push(email);
     localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
     input.value = '';
-    showToast(`${email} approved.`, 'success');
+    showToast(`${email} approved (local). Export to GitHub to make it permanent across all devices.`, 'success');
     this.renderEmailList();
   },
 
   removeEmail(email) {
+    // Can only remove locally-added emails, not server ones
+    if (Whitelist.isFromServer(email)) {
+      showToast('This email is from the shared whitelist.json file. Remove it from the file on GitHub to revoke access.', 'info');
+      return;
+    }
     const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist.filter(e => e !== email)));
-    showToast(`${email} removed from approved list.`, 'info');
+    showToast(`${email} removed.`, 'info');
     this.renderEmailList();
   },
 
@@ -1757,35 +1814,23 @@ const Teacher = {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target.result;
-      // Parse CSV or plain text — one email per line, or comma-separated
-      const allLines = text
-        .replace(/,/g, '\n')
-        .split('\n')
-        .map(line => line.trim().toLowerCase())
-        .filter(line => line.length > 0);
-
-      // Only accept valid @student.cga.school emails
-      const validEmails = allLines.filter(line =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(line) && line.endsWith('@student.cga.school')
-      );
+      const allLines = text.replace(/,/g, '\n').split('\n').map(l => l.trim().toLowerCase()).filter(l => l.length > 0);
+      const validEmails = allLines.filter(l => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(l) && l.endsWith('@student.cga.school'));
       const rejected = allLines.length - validEmails.length;
 
       if (validEmails.length === 0) {
-        showToast(`No valid @student.cga.school emails found in the file.${rejected > 0 ? ` ${rejected} line${rejected > 1 ? 's' : ''} rejected.` : ''}`, 'error');
+        showToast(`No valid @student.cga.school emails found.${rejected > 0 ? ` ${rejected} rejected.` : ''}`, 'error');
         return;
       }
 
       const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
       let added = 0;
-      validEmails.forEach(email => {
-        if (!whitelist.includes(email)) {
-          whitelist.push(email);
-          added++;
-        }
+      validEmails.forEach(em => {
+        if (!Whitelist.isApproved(em) && !whitelist.includes(em)) { whitelist.push(em); added++; }
       });
 
       localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
-      let msg = `${added} new email${added !== 1 ? 's' : ''} approved.`;
+      let msg = `${added} new email${added !== 1 ? 's' : ''} approved (local).`;
       if (validEmails.length - added > 0) msg += ` ${validEmails.length - added} already existed.`;
       if (rejected > 0) msg += ` ${rejected} rejected (wrong domain).`;
       showToast(msg, 'success');
@@ -1795,21 +1840,23 @@ const Teacher = {
     event.target.value = '';
   },
 
+  /** Export the FULL combined whitelist as data/whitelist.json — ready to commit to GitHub */
   exportEmails() {
-    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    if (whitelist.length === 0) {
+    const allEmails = Whitelist.getAll();
+    if (allEmails.length === 0) {
       showToast('No emails to export.', 'info');
       return;
     }
 
-    const blob = new Blob([whitelist.sort().join('\n')], { type: 'text/plain' });
+    const jsonContent = JSON.stringify({ emails: allEmails }, null, 2) + '\n';
+    const blob = new Blob([jsonContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `approved-emails-${new Date().toISOString().slice(0,10)}.txt`;
+    a.download = 'whitelist.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Email list exported.', 'success');
+    showToast('Downloaded whitelist.json — upload this to data/ in your GitHub repo to share across all devices.', 'success');
   }
 };
 
