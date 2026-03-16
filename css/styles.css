@@ -219,8 +219,6 @@ p { color: var(--text-secondary); }
   justify-content: center;
   margin: 0 auto 24px;
   font-size: 32px;
-  color: white;
-  box-shadow: var(--shadow-glow-blue);
 }
 
 .login-icon img {
