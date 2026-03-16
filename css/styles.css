@@ -1235,6 +1235,21 @@ p { color: var(--text-secondary); }
   border-radius: var(--radius-md);
 }
 
+.bool-strip-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* Ensure text fields accept Scribble / stylus handwriting */
+.working-textarea,
+.answer-input {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .bool-strip-row {
   display: flex;
   align-items: center;
