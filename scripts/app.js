@@ -1004,6 +1004,7 @@ const Practice = {
         <div id="feedback-area">${feedbackHTML}</div>
 
         <div class="bool-input-strip" id="bool-input-strip">
+          <div class="bool-strip-info">Type with keyboard or Scribble for text (law names, steps). Use these buttons for Boolean operators:</div>
           <div class="bool-strip-row">
             <span class="bool-strip-label">Variables</span>
             <button class="bool-btn" onclick="BooleanInput.insert('A')">A</button>
@@ -1024,7 +1025,10 @@ const Practice = {
             <button class="bool-btn" onclick="BooleanInput.insert('(')">(</button>
             <button class="bool-btn" onclick="BooleanInput.insert(')')">)</button>
             <button class="bool-btn" onclick="BooleanInput.insert('=')"> = </button>
+            <button class="bool-btn" onclick="BooleanInput.insert('[')"> [ </button>
+            <button class="bool-btn" onclick="BooleanInput.insert(']')"> ] </button>
             <span class="bool-strip-sep"></span>
+            <button class="bool-btn util" onclick="BooleanInput.insert(' ')">␣</button>
             <button class="bool-btn util" onclick="BooleanInput.insert('\\n')">↵</button>
             <button class="bool-btn util" onclick="BooleanInput.backspace()">⌫</button>
           </div>
