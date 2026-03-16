@@ -212,18 +212,17 @@ p { color: var(--text-secondary); }
 }
 
 .login-icon {
-  width: 300px;
-  height: 300px;
+  width: 72px;
+  height: 72px;
+  background: var(--navy);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
   font-size: 32px;
-}
-
-.login-icon img {
-  width: 100%;
-  height: auto;
+  color: white;
+  box-shadow: var(--shadow-glow-blue);
 }
 
 .login-card h1 {
@@ -1226,35 +1225,84 @@ p { color: var(--text-secondary); }
   display: block;
 }
 
-/* ── Stylus-Friendly Input Styles ──
-   Ensures text inputs and textareas work smoothly with
-   iPadOS Scribble, Windows Ink, ChromeOS handwriting,
-   and Samsung S Pen. No custom canvas needed. */
+/* ── Boolean Algebra Input Strip ── */
 
-.working-textarea,
-.answer-input {
-  /* Allow OS handwriting recognition — do NOT set touch-action: none */
-  touch-action: auto;
-  -webkit-user-select: text;
-  user-select: text;
-  /* Larger hit target for stylus */
-  min-height: 56px;
+.bool-input-strip {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
-.working-textarea {
-  /* Extra tall for comfortable stylus writing */
-  min-height: 160px;
+.bool-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
-/* Subtle visual hint on stylus/touch-capable devices */
+.bool-strip-row:last-child { margin-bottom: 0; }
+
+.bool-strip-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.bool-strip-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.bool-btn {
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--navy);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-width: 38px;
+  text-align: center;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.bool-btn small {
+  display: block;
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: var(--font-body);
+}
+
+.bool-btn:hover { border-color: var(--blue); background: rgba(84,120,255,0.06); }
+.bool-btn:active { background: var(--blue); color: white; border-color: var(--blue); }
+.bool-btn:active small { color: rgba(255,255,255,0.7); }
+.bool-btn.not { background: rgba(255,222,66,0.12); border-color: rgba(255,222,66,0.4); }
+.bool-btn.not:hover { background: rgba(255,222,66,0.25); }
+.bool-btn.not:active { background: var(--yellow); color: var(--navy); }
+.bool-btn.util { color: var(--text-muted); }
+
 @media (pointer: coarse) {
-  .working-textarea,
-  .answer-input {
-    font-size: 1.1rem;
-    line-height: 1.8;
-  }
-  .working-textarea {
-    min-height: 200px;
+  .bool-btn {
+    padding: 10px 12px;
+    font-size: 1rem;
+    min-width: 44px;
   }
 }
 
