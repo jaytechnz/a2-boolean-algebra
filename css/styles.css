@@ -212,10 +212,8 @@ p { color: var(--text-secondary); }
 }
 
 .login-icon {
-  width: 72px;
-  height: 72px;
-  background: var(--navy);
-  border-radius: var(--radius-lg);
+  width: 300px;
+  height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,6 +221,11 @@ p { color: var(--text-secondary); }
   font-size: 32px;
   color: white;
   box-shadow: var(--shadow-glow-blue);
+}
+
+.login-icon img {
+  width: 100%;
+  height: auto;
 }
 
 .login-card h1 {
