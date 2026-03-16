@@ -1670,6 +1670,17 @@ p { color: var(--text-secondary); }
 .email-status.active { background: var(--success-bg); color: #166534; }
 .email-status.pending { background: var(--bg); color: var(--text-muted); }
 
+.email-source {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.email-source.server { background: rgba(84,120,255,0.08); color: var(--blue); }
+.email-source.local { background: rgba(255,222,66,0.15); color: #92400E; }
+
 .email-row-actions { display: flex; gap: 4px; align-items: center; }
 
 .email-remove-btn {
