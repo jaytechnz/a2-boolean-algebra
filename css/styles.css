@@ -1812,6 +1812,32 @@ p { color: var(--text-secondary); }
 }
 .email-source.server { background: rgba(84,120,255,0.08); color: var(--blue); }
 .email-source.local { background: rgba(255,222,66,0.15); color: #92400E; }
+.email-source.removed { background: var(--error-bg); color: #991B1B; }
+
+.email-removed-section {
+  border-top: 2px solid var(--border);
+}
+
+.email-removed-label {
+  padding: 8px 14px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.email-row.removed {
+  opacity: 0.6;
+}
+
+.email-remove-btn.restore {
+  color: var(--success);
+}
+.email-remove-btn.restore:hover {
+  background: var(--success-bg);
+  color: #166534;
+}
 
 .email-row-actions { display: flex; gap: 4px; align-items: center; }
 
