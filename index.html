@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boolean Algebra Revision Hub — Cambridge A2 CS 9618</title>
+  <title>Boolean Algebra Mastery — Cambridge A2 CS 9618</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111FA2'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='18' font-family='serif' font-weight='bold'>B</text></svg>">
 </head>
@@ -17,10 +17,8 @@
   <!-- ════════════ TOP NAVIGATION ════════════ -->
   <nav class="top-nav hidden" id="top-nav">
     <a class="nav-brand" href="#" onclick="App.navigate('dashboard')">
-      <span class="brand-icon">
-        
-      </span>
-      <span>Boolean Algebra Revision Hub</span>
+      <span class="brand-icon">B</span>
+      <span>Boolean Mastery</span>
     </a>
     <button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="App.toggleMobileNav()">☰</button>
     <div class="nav-links" id="nav-links">
@@ -39,14 +37,11 @@
   <!-- ════════════ LOGIN SCREEN ════════════ -->
   <div class="screen active" id="login-screen">
     <div class="login-card">
-      <div class="login-icon">
-        <img src="assets/images/barry-and-bernice-login.png" alt="Barry and Bernice Boolean" />
-      </div>
-      <h1>Boolean Algebra</br>
-      Revision Hub</h1>
+      <div class="login-icon">B</div>
+      <h1>Boolean Mastery</h1>
       <p class="subtitle">
         Interactive Boolean Algebra Practice
-        <br><span>Cambridge A2 Computer Science 9618</span>
+        <br><span>Cambridge A2 CS 9618</span>
       </p>
 
       <div class="role-toggle" id="role-toggle">
@@ -171,6 +166,12 @@
         <!-- Filled by JS -->
       </div>
 
+      <!-- ── Suggestions (moves contextually via JS) ── -->
+      <div class="suggestion-box" id="suggestion-box">
+        <h4>💡 Intervention Suggestions — <span id="suggestion-target">Class Overview</span></h4>
+        <div id="suggestion-content"></div>
+      </div>
+
       <!-- ── Class Topic Performance Chart ── -->
       <div class="teacher-card" style="margin-bottom:20px;">
         <h3>📊 Class Topic Performance</h3>
@@ -210,6 +211,9 @@
         </div>
       </div>
 
+      <!-- ── Anchor point: suggestions move here when a student is selected ── -->
+      <div id="student-suggestion-anchor"></div>
+
       <!-- ── Student Working Viewer ── -->
       <div class="teacher-card" id="working-viewer-card" style="margin-bottom:20px;display:none;">
         <h3>📝 Student Working — <span id="working-viewer-name"></span></h3>
@@ -238,11 +242,8 @@
         </div>
       </div>
 
-      <!-- ── Suggestions ── -->
-      <div class="suggestion-box" id="suggestion-box">
-        <h4>💡 Intervention Suggestions — <span id="suggestion-target">Class Overview</span></h4>
-        <div id="suggestion-content"></div>
-      </div>
+      <!-- ── Anchor point: suggestions return here for class view ── -->
+      <div id="class-suggestion-anchor"></div>
     </div>
   </div>
 
@@ -254,11 +255,8 @@
 
   <footer>
     <h6>&copy Crimson Global Academy 2026</h6>
-    <h6>Cambridge A2 Computer Science 9618</h6>
+    <h6>Cambrdige A2 Computer Science 9618</h6>
   </footer>
-
   <script src="scripts/app.js"></script>
-
 </body>
-
 </html>
