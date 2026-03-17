@@ -1920,31 +1920,183 @@ const Teacher = {
   },
 
   generateDemoData() {
-    if (!confirm('Generate 8 demo students with randomised progress? Their emails will be added to the approved list if not already there.')) return;
-    const demoEmails = [
-      'emma.watson@student.cga.school','james.liu@student.cga.school','sophie.taylor@student.cga.school','oliver.khan@student.cga.school',
-      'mia.patel@student.cga.school','noah.smith@student.cga.school','ava.chen@student.cga.school','liam.brown@student.cga.school'
+    if (!confirm('Generate 10 demo students with varied progress? This showcases the full range of teacher dashboard analytics.')) return;
+
+    /* ── Student Profiles ──
+       Each student has a distinct learning profile so the teacher
+       dashboard shows the full scope of analytics:
+       - At-risk students (low accuracy, many attempts)
+       - Excelling students (high accuracy, many completed)
+       - New / low engagement students (very few exercises)
+       - Hint-reliant students
+       - Students strong in some topics, weak in others
+       - Recently active vs inactive students
+    */
+    const profiles = [
+      {
+        email: 'emma.watson@student.cga.school',
+        // TOP PERFORMER — high accuracy across all topics, many completed, rarely uses hints
+        numExercises: 85, baseAccuracy: 0.92, hintRate: 0.05, daysAgo: 0.2,
+        strengths: { de_morgan: 0.95, distributive: 0.90, absorption: 0.95, identity_null: 0.98,
+          commutative_associative: 0.97, inverse_complement: 0.96, double_negation: 0.99, multi_step: 0.85, cie_exam: 0.82 },
+        working: true
+      },
+      {
+        email: 'james.liu@student.cga.school',
+        // AT RISK — low accuracy, struggles especially with De Morgan and multi-step
+        numExercises: 42, baseAccuracy: 0.30, hintRate: 0.6, daysAgo: 1,
+        strengths: { de_morgan: 0.18, distributive: 0.35, absorption: 0.40, identity_null: 0.55,
+          commutative_associative: 0.50, inverse_complement: 0.45, double_negation: 0.60, multi_step: 0.12, cie_exam: 0.10 },
+        working: true
+      },
+      {
+        email: 'sophie.taylor@student.cga.school',
+        // GOOD BUT HINT-RELIANT — decent accuracy but uses hints on almost everything
+        numExercises: 60, baseAccuracy: 0.72, hintRate: 0.75, daysAgo: 0.5,
+        strengths: { de_morgan: 0.70, distributive: 0.75, absorption: 0.80, identity_null: 0.85,
+          commutative_associative: 0.80, inverse_complement: 0.78, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.50 },
+        working: true
+      },
+      {
+        email: 'oliver.khan@student.cga.school',
+        // BARELY STARTED — very low engagement, only 4 exercises done
+        numExercises: 4, baseAccuracy: 0.50, hintRate: 0.25, daysAgo: 5,
+        strengths: { de_morgan: 0.50, distributive: 0.50, absorption: 0.50, identity_null: 0.50,
+          commutative_associative: 0.50, inverse_complement: 0.50, double_negation: 0.50, multi_step: 0.50, cie_exam: 0.50 },
+        working: false
+      },
+      {
+        email: 'mia.patel@student.cga.school',
+        // STRONG ON BASICS, WEAK ON ADVANCED — great at simple laws, collapses on multi-step/exam
+        numExercises: 55, baseAccuracy: 0.65, hintRate: 0.3, daysAgo: 1.5,
+        strengths: { de_morgan: 0.50, distributive: 0.55, absorption: 0.90, identity_null: 0.95,
+          commutative_associative: 0.95, inverse_complement: 0.90, double_negation: 0.95, multi_step: 0.20, cie_exam: 0.15 },
+        working: true
+      },
+      {
+        email: 'noah.smith@student.cga.school',
+        // AVERAGE STUDENT — middle of the road on everything
+        numExercises: 38, baseAccuracy: 0.55, hintRate: 0.35, daysAgo: 2,
+        strengths: { de_morgan: 0.55, distributive: 0.55, absorption: 0.60, identity_null: 0.65,
+          commutative_associative: 0.60, inverse_complement: 0.55, double_negation: 0.70, multi_step: 0.40, cie_exam: 0.35 },
+        working: true
+      },
+      {
+        email: 'ava.chen@student.cga.school',
+        // RAPID IMPROVER — started weak but recent exercises are mostly correct
+        // Simulated by making early exercises wrong, later ones right
+        numExercises: 50, baseAccuracy: 0.68, hintRate: 0.2, daysAgo: 0.3,
+        strengths: { de_morgan: 0.75, distributive: 0.70, absorption: 0.80, identity_null: 0.85,
+          commutative_associative: 0.80, inverse_complement: 0.75, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.45 },
+        improving: true, working: true
+      },
+      {
+        email: 'liam.brown@student.cga.school',
+        // INACTIVE — hasn't logged in for 2 weeks, moderate progress before that
+        numExercises: 25, baseAccuracy: 0.60, hintRate: 0.3, daysAgo: 14,
+        strengths: { de_morgan: 0.60, distributive: 0.55, absorption: 0.65, identity_null: 0.70,
+          commutative_associative: 0.65, inverse_complement: 0.60, double_negation: 0.75, multi_step: 0.40, cie_exam: 0.30 },
+        working: true
+      },
+      {
+        email: 'zara.ahmed@student.cga.school',
+        // EXAM SPECIALIST — strong on CIE exam and multi-step but skips basic topics
+        numExercises: 45, baseAccuracy: 0.70, hintRate: 0.15, daysAgo: 0.8,
+        strengths: { de_morgan: 0.80, distributive: 0.75, absorption: 0.40, identity_null: 0.35,
+          commutative_associative: 0.30, inverse_complement: 0.35, double_negation: 0.45, multi_step: 0.85, cie_exam: 0.82 },
+        skipBasics: true, working: true
+      },
+      {
+        email: 'finn.oconnor@student.cga.school',
+        // PERFECTIONIST — only attempts exercises they're sure about, very high accuracy on few exercises
+        numExercises: 18, baseAccuracy: 0.94, hintRate: 0.0, daysAgo: 3,
+        strengths: { de_morgan: 0.95, distributive: 0.95, absorption: 0.95, identity_null: 0.98,
+          commutative_associative: 0.98, inverse_complement: 0.95, double_negation: 0.99, multi_step: 0.90, cie_exam: 0.88 },
+        working: true
+      }
     ];
+
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
     const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
 
-    demoEmails.forEach(email => {
+    profiles.forEach(profile => {
+      const email = profile.email;
       const uid = email.replace(/[^a-z0-9]/g, '_');
       const displayName = nameFromEmail(email);
-      // Only add to local whitelist if not already approved via server or local
+
       if (!Whitelist.isApproved(email) && !whitelist.includes(email)) whitelist.push(email);
       if (roster.includes(uid)) return;
       roster.push(uid);
-      const exercises = {}, num = 15 + Math.floor(Math.random() * 70);
-      const shuffled = [...EXERCISES].sort(() => Math.random() - 0.5).slice(0, num);
-      const strengths = {}; Object.keys(CATEGORIES).forEach(k => { strengths[k] = 0.3 + Math.random() * 0.6; });
-      shuffled.forEach(ex => { const chance = strengths[ex.category] - (ex.difficulty - 1) * 0.12; const correct = Math.random() < chance; exercises[ex.id] = { status: correct ? 'correct' : 'incorrect', attempts: correct ? 1 : 1 + Math.floor(Math.random() * 3), hintUsed: !correct && Math.random() < 0.4, working: correct ? `= step [${ex.lawUsed}]\n= ${ex.answer}` : '', timestamp: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString() }; });
-      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: displayName, email: email, exercises, startedAt: new Date().toISOString(), lastActive: new Date(Date.now() - Math.random() * 3 * 86400000).toISOString() }));
+
+      const exercises = {};
+
+      // Select which exercises this student attempts
+      let selected;
+      if (profile.skipBasics) {
+        // Exam specialist — mostly picks hard/multi-step/CIE, few basics
+        const hard = EXERCISES.filter(e => e.difficulty >= 2 || e.category === 'multi_step' || e.category === 'cie_exam');
+        const easy = EXERCISES.filter(e => e.difficulty === 1 && e.category !== 'multi_step' && e.category !== 'cie_exam');
+        selected = [...hard.sort(() => Math.random() - 0.5).slice(0, Math.min(profile.numExercises - 5, hard.length)),
+                     ...easy.sort(() => Math.random() - 0.5).slice(0, 5)];
+      } else {
+        selected = [...EXERCISES].sort(() => Math.random() - 0.5).slice(0, profile.numExercises);
+      }
+
+      selected.forEach((ex, idx) => {
+        let chance = profile.strengths[ex.category] || profile.baseAccuracy;
+
+        // Difficulty penalty
+        chance -= (ex.difficulty - 1) * 0.1;
+
+        // Improving student: first half of exercises have lower accuracy
+        if (profile.improving && idx < selected.length * 0.4) {
+          chance -= 0.3;
+        }
+
+        chance = Math.max(0.05, Math.min(0.98, chance));
+        const correct = Math.random() < chance;
+        const hintUsed = !correct && Math.random() < profile.hintRate;
+
+        // Generate working text
+        let working = '';
+        if (profile.working) {
+          if (correct) {
+            working = `= step 1 [${ex.lawUsed}]\n= ${toCIEText(ex.answer)}`;
+          } else if (Math.random() < 0.6) {
+            // Incorrect students sometimes still write working
+            const wrongLaws = ['De Morgan', 'Distributive', 'Absorption', 'Complement', 'Identity'];
+            working = `= tried [${wrongLaws[Math.floor(Math.random() * wrongLaws.length)]}]\n= stuck here`;
+          }
+        }
+
+        // Timestamps spread across the student's activity period
+        const daySpread = Math.max(profile.daysAgo, 1);
+        const exerciseTime = Date.now() - (profile.daysAgo * 86400000) - (Math.random() * daySpread * 86400000);
+
+        exercises[ex.id] = {
+          status: correct ? 'correct' : 'incorrect',
+          attempts: correct ? 1 : 1 + Math.floor(Math.random() * (profile.baseAccuracy < 0.4 ? 4 : 2)),
+          hintUsed,
+          working,
+          timestamp: new Date(exerciseTime).toISOString()
+        };
+      });
+
+      const lastActiveTime = Date.now() - profile.daysAgo * 86400000;
+
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({
+        userId: uid,
+        firstName: displayName,
+        email: email,
+        exercises,
+        startedAt: new Date(lastActiveTime - 14 * 86400000).toISOString(),
+        lastActive: new Date(lastActiveTime).toISOString()
+      }));
     });
 
     localStorage.setItem('ba_roster', JSON.stringify(roster));
     localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
-    showToast('8 demo students generated.', 'success');
+    showToast('10 demo students generated with varied progress.', 'success');
     this.render();
   },
 
