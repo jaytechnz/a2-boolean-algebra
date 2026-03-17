@@ -187,12 +187,18 @@ function renderTypedWorking(raw) {
 
 
 /* ══════════════════════════════════════════
-   BOOLEAN ALGEBRA INPUT — Symbol Strip
+   BOOLEAN ALGEBRA INPUT SYSTEM
 
-   Tappable buttons for all Boolean algebra symbols.
-   Inserts into whichever text field (working or answer)
-   was last focused. Also polls for keyboard/paste/stylus
-   input changes to keep the CIE preview in sync.
+   Three input methods, all working together:
+   1. KEYBOARD     — type directly in text fields
+   2. SYMBOL STRIP — tappable buttons for operators
+   3. DRAWING PAD  — draw with stylus/finger, recognised
+                     via Google Cloud Vision API with
+                     Boolean algebra post-processing
+
+   The drawing pad sends the canvas image to /api/recognise
+   (a Vercel serverless function) which calls Google Vision
+   and returns processed Boolean text.
    ══════════════════════════════════════════ */
 
 const BooleanInput = {
@@ -200,6 +206,10 @@ const BooleanInput = {
   _pollId: null,
   _lastWorkingVal: '',
   _lastAnswerVal: '',
+  _canvas: null,
+  _ctx: null,
+  _drawing: false,
+  _hasStrokes: false,
 
   startPolling() {
     this.stopPolling();
@@ -262,6 +272,109 @@ const BooleanInput = {
     }
     el.focus();
     if (typeof Practice !== 'undefined' && Practice.updatePreviews) Practice.updatePreviews();
+  },
+
+  // ── Drawing Pad with API Recognition ──
+
+  initCanvas() {
+    const canvas = document.getElementById('hw-draw-canvas');
+    if (!canvas) return;
+
+    this._canvas = canvas;
+    const ctx = canvas.getContext('2d');
+    this._ctx = ctx;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#111FA2';
+    this._hasStrokes = false;
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : e;
+      return { x: touch.clientX - r.left, y: touch.clientY - r.top };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this._drawing = true;
+      this._hasStrokes = true;
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this._drawing) return;
+      e.preventDefault();
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    });
+
+    const endStroke = () => { this._drawing = false; };
+    canvas.addEventListener('pointerup', endStroke);
+    canvas.addEventListener('pointerleave', endStroke);
+    canvas.style.touchAction = 'none';
+  },
+
+  clearCanvas() {
+    if (!this._canvas || !this._ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    this._ctx.clearRect(0, 0, this._canvas.width / dpr, this._canvas.height / dpr);
+    this._hasStrokes = false;
+    const status = document.getElementById('hw-status');
+    if (status) { status.textContent = ''; status.className = 'hw-status'; }
+  },
+
+  /** Send the canvas to the Vision API and insert the result */
+  async recognise() {
+    if (!this._canvas || !this._hasStrokes) return;
+
+    const status = document.getElementById('hw-status');
+    if (status) { status.textContent = 'Recognising...'; status.className = 'hw-status busy'; }
+
+    try {
+      // Get canvas as base64 PNG (strip the data:image/png;base64, prefix)
+      const dataUrl = this._canvas.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+
+      const resp = await fetch('/api/recognise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
+      });
+
+      const data = await resp.json();
+
+      if (data.error) {
+        if (status) { status.textContent = 'Error: ' + data.error; status.className = 'hw-status error'; }
+        return;
+      }
+
+      const recognised = data.text || data.raw || '';
+      if (recognised) {
+        if (status) { status.textContent = 'Recognised: ' + recognised; status.className = 'hw-status success'; }
+        this.insert(recognised);
+        setTimeout(() => this.clearCanvas(), 500);
+      } else {
+        if (status) { status.textContent = 'Nothing recognised — try writing larger'; status.className = 'hw-status error'; }
+      }
+    } catch (err) {
+      if (status) { status.textContent = 'Connection error — check API setup'; status.className = 'hw-status error'; }
+      console.error('Recognition error:', err);
+    }
   }
 };
 
@@ -1004,7 +1117,7 @@ const Practice = {
         <div id="feedback-area">${feedbackHTML}</div>
 
         <div class="bool-input-strip" id="bool-input-strip">
-          <div class="bool-strip-info">Type with keyboard or Scribble for text (law names, steps). Use these buttons for Boolean operators:</div>
+          <div class="bool-strip-info">Type with keyboard for text. Use buttons or drawing pad for Boolean operators and symbols:</div>
           <div class="bool-strip-row">
             <span class="bool-strip-label">Variables</span>
             <button class="bool-btn" onclick="BooleanInput.insert('A')">A</button>
@@ -1033,6 +1146,19 @@ const Practice = {
             <button class="bool-btn util" onclick="BooleanInput.backspace()">⌫</button>
           </div>
         </div>
+
+        <div class="hw-draw-section">
+          <div class="hw-draw-header">
+            <span class="hw-draw-title">✏️ Draw here (stylus or finger)</span>
+            <span class="hw-status" id="hw-status"></span>
+          </div>
+          <canvas id="hw-draw-canvas" class="hw-draw-canvas"></canvas>
+          <div class="hw-draw-actions">
+            <button class="btn btn-primary btn-sm" onclick="BooleanInput.recognise()">Recognise →</button>
+            <button class="btn btn-secondary btn-sm" onclick="BooleanInput.clearCanvas()">Clear</button>
+            <span class="hw-draw-hint">Write expressions, letters, operators, or draw an overbar above text for NOT</span>
+          </div>
+        </div>
       </div>
       <div class="exercise-nav">
         <button class="btn btn-secondary btn-sm" onclick="Practice.prev()" ${currentExerciseIndex === 0 ? 'disabled' : ''}>← Previous</button>
@@ -1047,9 +1173,10 @@ const Practice = {
     // Trigger initial preview render
     this.updatePreviews();
 
-    // Start input polling + track focus for symbol strip
+    // Start input polling + track focus + init drawing canvas
     BooleanInput.startPolling();
     BooleanInput.trackFocus();
+    BooleanInput.initCanvas();
 
     document.getElementById('streak-display').innerHTML = `🔥 ${streak} streak`;
     if (streak >= 3) document.getElementById('streak-display').classList.add('active');
