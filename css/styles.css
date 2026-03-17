@@ -1734,8 +1734,8 @@ p { color: var(--text-secondary); }
 .wv-answer strong { color: var(--navy); }
 
 /* Heatmap */
-.heatmap-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
-.heatmap-cell { aspect-ratio: 1; border-radius: 3px; cursor: pointer; transition: var(--transition-fast); }
+.heatmap-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; max-width: 50%; }
+.heatmap-cell { aspect-ratio: 1; border-radius: 2px; cursor: pointer; transition: var(--transition-fast); }
 .heatmap-cell:hover { transform: scale(1.2); z-index: 2; }
 .heatmap-cell.not-attempted { background: var(--bg); border: 1px solid var(--border); }
 .heatmap-cell.correct { background: var(--success); }
@@ -1857,7 +1857,7 @@ p { color: var(--text-secondary); }
   .teacher-grid { grid-template-columns: 1fr; }
   .class-overview-grid { grid-template-columns: repeat(2, 1fr); }
   .student-detail-stats { grid-template-columns: repeat(3, 1fr); }
-  .heatmap-grid { gap: 2px; }
+  .heatmap-grid { gap: 2px; max-width: 80%; }
 }
 
 /* ── Tooltip ── */
@@ -1999,7 +1999,7 @@ p { color: var(--text-secondary); }
   .practice-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; }
 
   .teacher-grid { grid-template-columns: 1fr; }
-  .heatmap-grid { grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  .heatmap-grid { grid-template-columns: repeat(10, 1fr); gap: 2px; max-width: 100%; }
 }
 
 @media (max-width: 480px) {
