@@ -394,13 +394,12 @@ const BooleanInput = {
    ══════════════════════════════════════════ */
 
 const Whitelist = {
-  _serverEmails: [],   // Emails from data/whitelist.json (shared across all devices)
+  _serverEmails: [],
   _loaded: false,
 
-  /** Fetch the shared whitelist from the server */
   async load() {
     try {
-      const resp = await fetch('data/whitelist.json?t=' + Date.now()); // cache-bust
+      const resp = await fetch('data/whitelist.json?t=' + Date.now());
       if (resp.ok) {
         const data = await resp.json();
         this._serverEmails = (data.emails || []).map(e => e.trim().toLowerCase()).filter(Boolean);
@@ -411,28 +410,57 @@ const Whitelist = {
     this._loaded = true;
   },
 
-  /** Get the combined list: server + localStorage additions */
-  getAll() {
-    const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    const combined = new Set([...this._serverEmails, ...local]);
-    return [...combined].sort();
+  /** Get locally-tracked removals */
+  _getRemovals() {
+    return JSON.parse(localStorage.getItem('ba_email_removals') || '[]');
   },
 
-  /** Check if an email is approved (from either source) */
+  /** Get the combined active list: (server + local additions) minus removals */
+  getAll() {
+    const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+    const removals = new Set(this._getRemovals());
+    const combined = new Set([...this._serverEmails, ...local]);
+    return [...combined].filter(e => !removals.has(e)).sort();
+  },
+
+  /** Check if an email is currently approved (not removed) */
   isApproved(email) {
+    const removals = this._getRemovals();
+    if (removals.includes(email)) return false;
     const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     return this._serverEmails.includes(email) || local.includes(email);
   },
 
-  /** Check if an email is from the shared server file */
   isFromServer(email) {
     return this._serverEmails.includes(email);
   },
 
-  /** Get only locally-added emails (not in server file) */
-  getLocalOnly() {
+  /** Remove an email — works on both server and local emails */
+  remove(email) {
+    // Remove from local additions if present
     const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    return local.filter(e => !this._serverEmails.includes(e));
+    localStorage.setItem('ba_email_whitelist', JSON.stringify(local.filter(e => e !== email)));
+
+    // If it's a server email, track the removal so it stays removed until re-added
+    if (this._serverEmails.includes(email)) {
+      const removals = this._getRemovals();
+      if (!removals.includes(email)) {
+        removals.push(email);
+        localStorage.setItem('ba_email_removals', JSON.stringify(removals));
+      }
+    }
+  },
+
+  /** Re-approve a previously removed server email */
+  restore(email) {
+    const removals = this._getRemovals();
+    localStorage.setItem('ba_email_removals', JSON.stringify(removals.filter(e => e !== email)));
+  },
+
+  /** Get emails that were removed from the server list (for display) */
+  getRemovedServerEmails() {
+    const removals = this._getRemovals();
+    return removals.filter(e => this._serverEmails.includes(e));
   }
 };
 
@@ -1953,10 +1981,23 @@ const Teacher = {
         <div class="email-row-actions">
           ${sourceTag}
           <span class="email-status ${isActive ? 'active' : 'pending'}">${isActive ? 'active' : 'pending'}</span>
-          ${isServer ? '' : `<button class="email-remove-btn" onclick="Teacher.removeEmail('${email}')" title="Remove">✕</button>`}
+          <button class="email-remove-btn" onclick="Teacher.removeEmail('${email}')" title="Remove student access">✕</button>
         </div>
       </div>`;
     }).join('');
+
+    // Show removed server emails with restore option
+    const removed = Whitelist.getRemovedServerEmails();
+    if (removed.length > 0) {
+      list.innerHTML += `<div class="email-removed-section"><div class="email-removed-label">Removed (from shared list):</div>` +
+        removed.map(email => `<div class="email-row removed">
+          <span>${email}</span>
+          <div class="email-row-actions">
+            <span class="email-source removed">removed</span>
+            <button class="email-remove-btn restore" onclick="Teacher.restoreEmail('${email}')" title="Restore access">↩</button>
+          </div>
+        </div>`).join('') + '</div>';
+    }
   },
 
   addEmail() {
@@ -1980,23 +2021,33 @@ const Teacher = {
       return;
     }
 
-    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    whitelist.push(email);
-    localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
+    // Clear any prior removal (restores server-sourced emails)
+    Whitelist.restore(email);
+
+    // Add to local list if not already a server email
+    if (!Whitelist.isFromServer(email)) {
+      const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
+      if (!whitelist.includes(email)) {
+        whitelist.push(email);
+        localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist));
+      }
+    }
+
     input.value = '';
-    showToast(`${email} approved (local). Export to GitHub to make it permanent across all devices.`, 'success');
+    showToast(`${email} approved.`, 'success');
     this.renderEmailList();
   },
 
   removeEmail(email) {
-    // Can only remove locally-added emails, not server ones
-    if (Whitelist.isFromServer(email)) {
-      showToast('This email is from the shared whitelist.json file. Remove it from the file on GitHub to revoke access.', 'info');
-      return;
-    }
-    const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
-    localStorage.setItem('ba_email_whitelist', JSON.stringify(whitelist.filter(e => e !== email)));
-    showToast(`${email} removed.`, 'info');
+    if (!confirm(`Remove ${email}? This student will no longer be able to log in.`)) return;
+    Whitelist.remove(email);
+    showToast(`${email} removed. Export whitelist.json to make this permanent.`, 'info');
+    this.renderEmailList();
+  },
+
+  restoreEmail(email) {
+    Whitelist.restore(email);
+    showToast(`${email} restored.`, 'success');
     this.renderEmailList();
   },
 
