@@ -1664,12 +1664,28 @@ const Teacher = {
     document.getElementById('heatmap-student-name').textContent = (p?.firstName || uid);
     document.getElementById('heatmap-mode-label').textContent = 'Green = correct, red = incorrect, amber = hint used.';
     document.getElementById('suggestion-target').textContent = (p?.firstName || uid);
+
+    // Move suggestions above the working viewer
+    const suggBox = document.getElementById('suggestion-box');
+    const anchor = document.getElementById('student-suggestion-anchor');
+    if (suggBox && anchor) anchor.after(suggBox);
+
     document.getElementById('teacher-detail-card')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
   deselectStudent() {
     this.selectedStudent = null;
     document.getElementById('working-viewer-card').style.display = 'none';
+
+    // Move suggestions back above class topic performance
+    const suggBox = document.getElementById('suggestion-box');
+    const anchor = document.getElementById('class-suggestion-anchor');
+    if (suggBox && anchor) {
+      // Insert after class-overview-grid (before class topic performance)
+      const overviewGrid = document.getElementById('class-overview-grid');
+      if (overviewGrid) overviewGrid.after(suggBox);
+    }
+
     this.render();
     document.getElementById('heatmap-mode-label').textContent = 'Colour intensity shows how many students answered correctly.';
     document.getElementById('suggestion-target').textContent = 'Class Overview';
