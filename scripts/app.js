@@ -187,29 +187,21 @@ function renderTypedWorking(raw) {
 
 
 /* ══════════════════════════════════════════
-   BOOLEAN ALGEBRA INPUT SYSTEM
-
-   Three input methods, all working together:
-   1. KEYBOARD     — type directly in text fields
-   2. SYMBOL STRIP — tappable buttons for operators
-   3. DRAWING PAD  — draw with stylus/finger, recognised
-                     via Google Cloud Vision API with
-                     Boolean algebra post-processing
-
-   The drawing pad sends the canvas image to /api/recognise
-   (a Vercel serverless function) which calls Google Vision
-   and returns processed Boolean text.
+   STYLUS / HANDWRITING SUPPORT
+   
+   No custom canvas needed. Modern devices (iPadOS Scribble, Windows Ink,
+   ChromeOS, Samsung S Pen) convert stylus strokes to text natively in
+   standard <input> and <textarea> elements.
+   
+   This module ensures the live CIE preview always updates, regardless of
+   how text enters the field: keyboard, stylus handwriting, paste, voice,
+   autofill, or IME composition.
    ══════════════════════════════════════════ */
 
-const BooleanInput = {
-  _activeField: null,
+const StylusSupport = {
   _pollId: null,
   _lastWorkingVal: '',
   _lastAnswerVal: '',
-  _canvas: null,
-  _ctx: null,
-  _drawing: false,
-  _hasStrokes: false,
 
   startPolling() {
     this.stopPolling();
@@ -227,154 +219,6 @@ const BooleanInput = {
 
   stopPolling() {
     if (this._pollId) { clearInterval(this._pollId); this._pollId = null; }
-  },
-
-  trackFocus() {
-    document.addEventListener('focusin', (e) => {
-      if (e.target.id === 'working-input' || e.target.id === 'answer-input') {
-        this._activeField = e.target.id;
-      }
-    });
-  },
-
-  insert(char) {
-    const el = document.getElementById(this._activeField || 'answer-input');
-    if (!el || el.disabled) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    el.value = el.value.substring(0, start) + char + el.value.substring(end);
-    el.selectionStart = el.selectionEnd = start + char.length;
-    el.focus();
-    if (typeof Practice !== 'undefined' && Practice.updatePreviews) Practice.updatePreviews();
-  },
-
-  insertNot() {
-    const el = document.getElementById(this._activeField || 'answer-input');
-    if (!el || el.disabled) return;
-    const pos = el.selectionStart ?? el.value.length;
-    el.value = el.value.substring(0, pos) + "'" + el.value.substring(pos);
-    el.selectionStart = el.selectionEnd = pos + 1;
-    el.focus();
-    if (typeof Practice !== 'undefined' && Practice.updatePreviews) Practice.updatePreviews();
-  },
-
-  backspace() {
-    const el = document.getElementById(this._activeField || 'answer-input');
-    if (!el || el.disabled) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    if (start !== end) {
-      el.value = el.value.substring(0, start) + el.value.substring(end);
-      el.selectionStart = el.selectionEnd = start;
-    } else if (start > 0) {
-      el.value = el.value.substring(0, start - 1) + el.value.substring(start);
-      el.selectionStart = el.selectionEnd = start - 1;
-    }
-    el.focus();
-    if (typeof Practice !== 'undefined' && Practice.updatePreviews) Practice.updatePreviews();
-  },
-
-  // ── Drawing Pad with API Recognition ──
-
-  initCanvas() {
-    const canvas = document.getElementById('hw-draw-canvas');
-    if (!canvas) return;
-
-    this._canvas = canvas;
-    const ctx = canvas.getContext('2d');
-    this._ctx = ctx;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#111FA2';
-    this._hasStrokes = false;
-
-    const getPos = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const touch = e.touches ? e.touches[0] : e;
-      return { x: touch.clientX - r.left, y: touch.clientY - r.top };
-    };
-
-    canvas.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      this._drawing = true;
-      this._hasStrokes = true;
-      const p = getPos(e);
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-    });
-
-    canvas.addEventListener('pointermove', (e) => {
-      if (!this._drawing) return;
-      e.preventDefault();
-      const p = getPos(e);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-    });
-
-    const endStroke = () => { this._drawing = false; };
-    canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointerleave', endStroke);
-    canvas.style.touchAction = 'none';
-  },
-
-  clearCanvas() {
-    if (!this._canvas || !this._ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    this._ctx.clearRect(0, 0, this._canvas.width / dpr, this._canvas.height / dpr);
-    this._hasStrokes = false;
-    const status = document.getElementById('hw-status');
-    if (status) { status.textContent = ''; status.className = 'hw-status'; }
-  },
-
-  /** Send the canvas to the Vision API and insert the result */
-  async recognise() {
-    if (!this._canvas || !this._hasStrokes) return;
-
-    const status = document.getElementById('hw-status');
-    if (status) { status.textContent = 'Recognising...'; status.className = 'hw-status busy'; }
-
-    try {
-      // Get canvas as base64 PNG (strip the data:image/png;base64, prefix)
-      const dataUrl = this._canvas.toDataURL('image/png');
-      const base64 = dataUrl.split(',')[1];
-
-      const resp = await fetch('/api/recognise', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64 })
-      });
-
-      const data = await resp.json();
-
-      if (data.error) {
-        if (status) { status.textContent = 'Error: ' + data.error; status.className = 'hw-status error'; }
-        return;
-      }
-
-      const recognised = data.text || data.raw || '';
-      if (recognised) {
-        if (status) { status.textContent = 'Recognised: ' + recognised; status.className = 'hw-status success'; }
-        this.insert(recognised);
-        setTimeout(() => this.clearCanvas(), 500);
-      } else {
-        if (status) { status.textContent = 'Nothing recognised — try writing larger'; status.className = 'hw-status error'; }
-      }
-    } catch (err) {
-      if (status) { status.textContent = 'Connection error — check API setup'; status.className = 'hw-status error'; }
-      console.error('Recognition error:', err);
-    }
   }
 };
 
@@ -410,12 +254,10 @@ const Whitelist = {
     this._loaded = true;
   },
 
-  /** Get locally-tracked removals */
   _getRemovals() {
     return JSON.parse(localStorage.getItem('ba_email_removals') || '[]');
   },
 
-  /** Get the combined active list: (server + local additions) minus removals */
   getAll() {
     const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     const removals = new Set(this._getRemovals());
@@ -423,10 +265,8 @@ const Whitelist = {
     return [...combined].filter(e => !removals.has(e)).sort();
   },
 
-  /** Check if an email is currently approved (not removed) */
   isApproved(email) {
-    const removals = this._getRemovals();
-    if (removals.includes(email)) return false;
+    if (this._getRemovals().includes(email)) return false;
     const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     return this._serverEmails.includes(email) || local.includes(email);
   },
@@ -435,13 +275,9 @@ const Whitelist = {
     return this._serverEmails.includes(email);
   },
 
-  /** Remove an email — works on both server and local emails */
   remove(email) {
-    // Remove from local additions if present
     const local = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
     localStorage.setItem('ba_email_whitelist', JSON.stringify(local.filter(e => e !== email)));
-
-    // If it's a server email, track the removal so it stays removed until re-added
     if (this._serverEmails.includes(email)) {
       const removals = this._getRemovals();
       if (!removals.includes(email)) {
@@ -451,16 +287,13 @@ const Whitelist = {
     }
   },
 
-  /** Re-approve a previously removed server email */
   restore(email) {
     const removals = this._getRemovals();
     localStorage.setItem('ba_email_removals', JSON.stringify(removals.filter(e => e !== email)));
   },
 
-  /** Get emails that were removed from the server list (for display) */
   getRemovedServerEmails() {
-    const removals = this._getRemovals();
-    return removals.filter(e => this._serverEmails.includes(e));
+    return this._getRemovals().filter(e => this._serverEmails.includes(e));
   }
 };
 
@@ -887,6 +720,20 @@ const Dashboard = {
         </div>
       `;
     }
+  },
+
+  resetProgress() {
+    if (!confirm('Reset all your progress? This will clear all exercise attempts, working, and scores so you can start fresh. This cannot be undone.')) return;
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const progress = getProgress();
+    if (progress) {
+      progress.exercises = {};
+      progress.lastActive = new Date().toISOString();
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify(progress));
+    }
+    showToast('Progress reset. All exercises are now unattempted.', 'info');
+    this.render();
   }
 };
 
@@ -1143,49 +990,14 @@ const Practice = {
           <button class="btn btn-secondary btn-sm" onclick="Practice.showAnswer()">👁 Show Answer</button>
         </div>
         <div id="feedback-area">${feedbackHTML}</div>
-
-        <div class="bool-input-strip" id="bool-input-strip">
-          <div class="bool-strip-info">Type with keyboard for text. Use buttons or drawing pad for Boolean operators and symbols:</div>
-          <div class="bool-strip-row">
-            <span class="bool-strip-label">Variables</span>
-            <button class="bool-btn" onclick="BooleanInput.insert('A')">A</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('B')">B</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('C')">C</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('D')">D</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('E')">E</button>
-            <span class="bool-strip-sep"></span>
-            <button class="bool-btn" onclick="BooleanInput.insert('0')">0</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('1')">1</button>
-          </div>
-          <div class="bool-strip-row">
-            <span class="bool-strip-label">Operators</span>
-            <button class="bool-btn op" onclick="BooleanInput.insert('+')">+ <small>OR</small></button>
-            <button class="bool-btn op" onclick="BooleanInput.insert('.')">· <small>AND</small></button>
-            <button class="bool-btn op not" onclick="BooleanInput.insertNot()">' <small>NOT</small></button>
-            <span class="bool-strip-sep"></span>
-            <button class="bool-btn" onclick="BooleanInput.insert('(')">(</button>
-            <button class="bool-btn" onclick="BooleanInput.insert(')')">)</button>
-            <button class="bool-btn" onclick="BooleanInput.insert('=')"> = </button>
-            <button class="bool-btn" onclick="BooleanInput.insert('[')"> [ </button>
-            <button class="bool-btn" onclick="BooleanInput.insert(']')"> ] </button>
-            <span class="bool-strip-sep"></span>
-            <button class="bool-btn util" onclick="BooleanInput.insert(' ')">␣</button>
-            <button class="bool-btn util" onclick="BooleanInput.insert('\\n')">↵</button>
-            <button class="bool-btn util" onclick="BooleanInput.backspace()">⌫</button>
-          </div>
-        </div>
-
-        <div class="hw-draw-section">
-          <div class="hw-draw-header">
-            <span class="hw-draw-title">✏️ Draw here (stylus or finger)</span>
-            <span class="hw-status" id="hw-status"></span>
-          </div>
-          <canvas id="hw-draw-canvas" class="hw-draw-canvas"></canvas>
-          <div class="hw-draw-actions">
-            <button class="btn btn-primary btn-sm" onclick="BooleanInput.recognise()">Recognise →</button>
-            <button class="btn btn-secondary btn-sm" onclick="BooleanInput.clearCanvas()">Clear</button>
-            <span class="hw-draw-hint">Write expressions, letters, operators, or draw an overbar above text for NOT</span>
-          </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm);font-size:0.75rem;color:var(--text-muted);">
+          <strong>How to enter CIE notation:</strong> &nbsp;
+          AND → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">.</code> &nbsp;
+          OR → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">+</code> &nbsp;
+          NOT → <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">'</code> after a variable or <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">)</code> &nbsp;
+          e.g. type <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">A'</code> → ${renderCIE('¬A')}, &nbsp;
+          <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;">(A+B)'</code> → ${renderCIE('¬(A+B)')}
+          <br>✏️ <em>You can also write directly in the text boxes with a stylus — your device will convert handwriting to text automatically.</em>
         </div>
       </div>
       <div class="exercise-nav">
@@ -1201,10 +1013,8 @@ const Practice = {
     // Trigger initial preview render
     this.updatePreviews();
 
-    // Start input polling + track focus + init drawing canvas
-    BooleanInput.startPolling();
-    BooleanInput.trackFocus();
-    BooleanInput.initCanvas();
+    // Start polling for stylus/handwriting input that may bypass oninput
+    StylusSupport.startPolling();
 
     document.getElementById('streak-display').innerHTML = `🔥 ${streak} streak`;
     if (streak >= 3) document.getElementById('streak-display').classList.add('active');
@@ -1679,12 +1489,8 @@ const Teacher = {
 
     // Move suggestions back above class topic performance
     const suggBox = document.getElementById('suggestion-box');
-    const anchor = document.getElementById('class-suggestion-anchor');
-    if (suggBox && anchor) {
-      // Insert after class-overview-grid (before class topic performance)
-      const overviewGrid = document.getElementById('class-overview-grid');
-      if (overviewGrid) overviewGrid.after(suggBox);
-    }
+    const overviewGrid = document.getElementById('class-overview-grid');
+    if (suggBox && overviewGrid) overviewGrid.after(suggBox);
 
     this.render();
     document.getElementById('heatmap-mode-label').textContent = 'Colour intensity shows how many students answered correctly.';
@@ -1737,7 +1543,10 @@ const Teacher = {
         <div class="detail-section"><h4>Topic Breakdown</h4>${catBreakdown}</div>
         <div class="detail-section"><h4>Difficulty Breakdown</h4><p class="diff-breakdown">${diffBreakdown}</p></div>
         <div class="detail-section" style="margin-bottom:0;"><h4>Understanding Radar</h4><div class="chart-container"><canvas id="radar-chart"></canvas></div></div>
-        <div style="margin-top:16px;"><button class="btn btn-secondary btn-sm" onclick="Teacher.removeStudent('${uid}')">🗑 Remove Student</button></div>
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="Teacher.resetStudentProgress('${uid}')">🔄 Reset Progress</button>
+          <button class="btn btn-secondary btn-sm" onclick="Teacher.removeStudent('${uid}')">🗑 Remove Student</button>
+        </div>
       </div>`;
     this.drawRadarChart(uid);
   },
@@ -1901,6 +1710,19 @@ const Teacher = {
     this.selectedStudent = null; showToast('Student removed.', 'info'); this.render();
   },
 
+  resetStudentProgress(uid) {
+    const name = getProgress(uid)?.firstName || uid;
+    if (!confirm(`Reset all progress for ${name}? This clears all their exercise attempts, working, and scores. They will start fresh.`)) return;
+    const progress = getProgress(uid);
+    if (progress) {
+      progress.exercises = {};
+      progress.lastActive = new Date().toISOString();
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify(progress));
+    }
+    showToast(`${name}'s progress has been reset.`, 'info');
+    this.selectStudent(uid);
+  },
+
   async resetTeacherPassword() {
     const newPw = prompt('Enter your new teacher password:');
     if (!newPw || newPw.length < 4) {
@@ -1938,98 +1760,27 @@ const Teacher = {
   generateDemoData() {
     if (!confirm('Generate 10 demo students with varied progress? This showcases the full range of teacher dashboard analytics.')) return;
 
-    /* ── Student Profiles ──
-       Each student has a distinct learning profile so the teacher
-       dashboard shows the full scope of analytics:
-       - At-risk students (low accuracy, many attempts)
-       - Excelling students (high accuracy, many completed)
-       - New / low engagement students (very few exercises)
-       - Hint-reliant students
-       - Students strong in some topics, weak in others
-       - Recently active vs inactive students
-    */
     const profiles = [
-      {
-        email: 'emma.watson@student.cga.school',
-        // TOP PERFORMER — high accuracy across all topics, many completed, rarely uses hints
-        numExercises: 85, baseAccuracy: 0.92, hintRate: 0.05, daysAgo: 0.2,
-        strengths: { de_morgan: 0.95, distributive: 0.90, absorption: 0.95, identity_null: 0.98,
-          commutative_associative: 0.97, inverse_complement: 0.96, double_negation: 0.99, multi_step: 0.85, cie_exam: 0.82 },
-        working: true
-      },
-      {
-        email: 'james.liu@student.cga.school',
-        // AT RISK — low accuracy, struggles especially with De Morgan and multi-step
-        numExercises: 42, baseAccuracy: 0.30, hintRate: 0.6, daysAgo: 1,
-        strengths: { de_morgan: 0.18, distributive: 0.35, absorption: 0.40, identity_null: 0.55,
-          commutative_associative: 0.50, inverse_complement: 0.45, double_negation: 0.60, multi_step: 0.12, cie_exam: 0.10 },
-        working: true
-      },
-      {
-        email: 'sophie.taylor@student.cga.school',
-        // GOOD BUT HINT-RELIANT — decent accuracy but uses hints on almost everything
-        numExercises: 60, baseAccuracy: 0.72, hintRate: 0.75, daysAgo: 0.5,
-        strengths: { de_morgan: 0.70, distributive: 0.75, absorption: 0.80, identity_null: 0.85,
-          commutative_associative: 0.80, inverse_complement: 0.78, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.50 },
-        working: true
-      },
-      {
-        email: 'oliver.khan@student.cga.school',
-        // BARELY STARTED — very low engagement, only 4 exercises done
-        numExercises: 4, baseAccuracy: 0.50, hintRate: 0.25, daysAgo: 5,
-        strengths: { de_morgan: 0.50, distributive: 0.50, absorption: 0.50, identity_null: 0.50,
-          commutative_associative: 0.50, inverse_complement: 0.50, double_negation: 0.50, multi_step: 0.50, cie_exam: 0.50 },
-        working: false
-      },
-      {
-        email: 'mia.patel@student.cga.school',
-        // STRONG ON BASICS, WEAK ON ADVANCED — great at simple laws, collapses on multi-step/exam
-        numExercises: 55, baseAccuracy: 0.65, hintRate: 0.3, daysAgo: 1.5,
-        strengths: { de_morgan: 0.50, distributive: 0.55, absorption: 0.90, identity_null: 0.95,
-          commutative_associative: 0.95, inverse_complement: 0.90, double_negation: 0.95, multi_step: 0.20, cie_exam: 0.15 },
-        working: true
-      },
-      {
-        email: 'noah.smith@student.cga.school',
-        // AVERAGE STUDENT — middle of the road on everything
-        numExercises: 38, baseAccuracy: 0.55, hintRate: 0.35, daysAgo: 2,
-        strengths: { de_morgan: 0.55, distributive: 0.55, absorption: 0.60, identity_null: 0.65,
-          commutative_associative: 0.60, inverse_complement: 0.55, double_negation: 0.70, multi_step: 0.40, cie_exam: 0.35 },
-        working: true
-      },
-      {
-        email: 'ava.chen@student.cga.school',
-        // RAPID IMPROVER — started weak but recent exercises are mostly correct
-        // Simulated by making early exercises wrong, later ones right
-        numExercises: 50, baseAccuracy: 0.68, hintRate: 0.2, daysAgo: 0.3,
-        strengths: { de_morgan: 0.75, distributive: 0.70, absorption: 0.80, identity_null: 0.85,
-          commutative_associative: 0.80, inverse_complement: 0.75, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.45 },
-        improving: true, working: true
-      },
-      {
-        email: 'liam.brown@student.cga.school',
-        // INACTIVE — hasn't logged in for 2 weeks, moderate progress before that
-        numExercises: 25, baseAccuracy: 0.60, hintRate: 0.3, daysAgo: 14,
-        strengths: { de_morgan: 0.60, distributive: 0.55, absorption: 0.65, identity_null: 0.70,
-          commutative_associative: 0.65, inverse_complement: 0.60, double_negation: 0.75, multi_step: 0.40, cie_exam: 0.30 },
-        working: true
-      },
-      {
-        email: 'zara.ahmed@student.cga.school',
-        // EXAM SPECIALIST — strong on CIE exam and multi-step but skips basic topics
-        numExercises: 45, baseAccuracy: 0.70, hintRate: 0.15, daysAgo: 0.8,
-        strengths: { de_morgan: 0.80, distributive: 0.75, absorption: 0.40, identity_null: 0.35,
-          commutative_associative: 0.30, inverse_complement: 0.35, double_negation: 0.45, multi_step: 0.85, cie_exam: 0.82 },
-        skipBasics: true, working: true
-      },
-      {
-        email: 'finn.oconnor@student.cga.school',
-        // PERFECTIONIST — only attempts exercises they're sure about, very high accuracy on few exercises
-        numExercises: 18, baseAccuracy: 0.94, hintRate: 0.0, daysAgo: 3,
-        strengths: { de_morgan: 0.95, distributive: 0.95, absorption: 0.95, identity_null: 0.98,
-          commutative_associative: 0.98, inverse_complement: 0.95, double_negation: 0.99, multi_step: 0.90, cie_exam: 0.88 },
-        working: true
-      }
+      { email: 'emma.watson@student.cga.school', numExercises: 85, baseAccuracy: 0.92, hintRate: 0.05, daysAgo: 0.2,
+        strengths: { de_morgan: 0.95, distributive: 0.90, absorption: 0.95, identity_null: 0.98, commutative_associative: 0.97, inverse_complement: 0.96, double_negation: 0.99, multi_step: 0.85, cie_exam: 0.82 }, working: true },
+      { email: 'james.liu@student.cga.school', numExercises: 42, baseAccuracy: 0.30, hintRate: 0.6, daysAgo: 1,
+        strengths: { de_morgan: 0.18, distributive: 0.35, absorption: 0.40, identity_null: 0.55, commutative_associative: 0.50, inverse_complement: 0.45, double_negation: 0.60, multi_step: 0.12, cie_exam: 0.10 }, working: true },
+      { email: 'sophie.taylor@student.cga.school', numExercises: 60, baseAccuracy: 0.72, hintRate: 0.75, daysAgo: 0.5,
+        strengths: { de_morgan: 0.70, distributive: 0.75, absorption: 0.80, identity_null: 0.85, commutative_associative: 0.80, inverse_complement: 0.78, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.50 }, working: true },
+      { email: 'oliver.khan@student.cga.school', numExercises: 4, baseAccuracy: 0.50, hintRate: 0.25, daysAgo: 5, working: false,
+        strengths: { de_morgan: 0.50, distributive: 0.50, absorption: 0.50, identity_null: 0.50, commutative_associative: 0.50, inverse_complement: 0.50, double_negation: 0.50, multi_step: 0.50, cie_exam: 0.50 } },
+      { email: 'mia.patel@student.cga.school', numExercises: 55, baseAccuracy: 0.65, hintRate: 0.3, daysAgo: 1.5,
+        strengths: { de_morgan: 0.50, distributive: 0.55, absorption: 0.90, identity_null: 0.95, commutative_associative: 0.95, inverse_complement: 0.90, double_negation: 0.95, multi_step: 0.20, cie_exam: 0.15 }, working: true },
+      { email: 'noah.smith@student.cga.school', numExercises: 38, baseAccuracy: 0.55, hintRate: 0.35, daysAgo: 2,
+        strengths: { de_morgan: 0.55, distributive: 0.55, absorption: 0.60, identity_null: 0.65, commutative_associative: 0.60, inverse_complement: 0.55, double_negation: 0.70, multi_step: 0.40, cie_exam: 0.35 }, working: true },
+      { email: 'ava.chen@student.cga.school', numExercises: 50, baseAccuracy: 0.68, hintRate: 0.2, daysAgo: 0.3,
+        strengths: { de_morgan: 0.75, distributive: 0.70, absorption: 0.80, identity_null: 0.85, commutative_associative: 0.80, inverse_complement: 0.75, double_negation: 0.90, multi_step: 0.55, cie_exam: 0.45 }, improving: true, working: true },
+      { email: 'liam.brown@student.cga.school', numExercises: 25, baseAccuracy: 0.60, hintRate: 0.3, daysAgo: 14,
+        strengths: { de_morgan: 0.60, distributive: 0.55, absorption: 0.65, identity_null: 0.70, commutative_associative: 0.65, inverse_complement: 0.60, double_negation: 0.75, multi_step: 0.40, cie_exam: 0.30 }, working: true },
+      { email: 'zara.ahmed@student.cga.school', numExercises: 45, baseAccuracy: 0.70, hintRate: 0.15, daysAgo: 0.8,
+        strengths: { de_morgan: 0.80, distributive: 0.75, absorption: 0.40, identity_null: 0.35, commutative_associative: 0.30, inverse_complement: 0.35, double_negation: 0.45, multi_step: 0.85, cie_exam: 0.82 }, skipBasics: true, working: true },
+      { email: 'finn.oconnor@student.cga.school', numExercises: 18, baseAccuracy: 0.94, hintRate: 0.0, daysAgo: 3,
+        strengths: { de_morgan: 0.95, distributive: 0.95, absorption: 0.95, identity_null: 0.98, commutative_associative: 0.98, inverse_complement: 0.95, double_negation: 0.99, multi_step: 0.90, cie_exam: 0.88 }, working: true }
     ];
 
     const roster = JSON.parse(localStorage.getItem('ba_roster') || '[]');
@@ -2045,11 +1796,8 @@ const Teacher = {
       roster.push(uid);
 
       const exercises = {};
-
-      // Select which exercises this student attempts
       let selected;
       if (profile.skipBasics) {
-        // Exam specialist — mostly picks hard/multi-step/CIE, few basics
         const hard = EXERCISES.filter(e => e.difficulty >= 2 || e.category === 'multi_step' || e.category === 'cie_exam');
         const easy = EXERCISES.filter(e => e.difficulty === 1 && e.category !== 'multi_step' && e.category !== 'cie_exam');
         selected = [...hard.sort(() => Math.random() - 0.5).slice(0, Math.min(profile.numExercises - 5, hard.length)),
@@ -2060,54 +1808,26 @@ const Teacher = {
 
       selected.forEach((ex, idx) => {
         let chance = profile.strengths[ex.category] || profile.baseAccuracy;
-
-        // Difficulty penalty
         chance -= (ex.difficulty - 1) * 0.1;
-
-        // Improving student: first half of exercises have lower accuracy
-        if (profile.improving && idx < selected.length * 0.4) {
-          chance -= 0.3;
-        }
-
+        if (profile.improving && idx < selected.length * 0.4) chance -= 0.3;
         chance = Math.max(0.05, Math.min(0.98, chance));
         const correct = Math.random() < chance;
         const hintUsed = !correct && Math.random() < profile.hintRate;
-
-        // Generate working text
         let working = '';
         if (profile.working) {
-          if (correct) {
-            working = `= step 1 [${ex.lawUsed}]\n= ${toCIEText(ex.answer)}`;
-          } else if (Math.random() < 0.6) {
-            // Incorrect students sometimes still write working
+          if (correct) working = `= step 1 [${ex.lawUsed}]\n= ${toCIEText(ex.answer)}`;
+          else if (Math.random() < 0.6) {
             const wrongLaws = ['De Morgan', 'Distributive', 'Absorption', 'Complement', 'Identity'];
             working = `= tried [${wrongLaws[Math.floor(Math.random() * wrongLaws.length)]}]\n= stuck here`;
           }
         }
-
-        // Timestamps spread across the student's activity period
         const daySpread = Math.max(profile.daysAgo, 1);
         const exerciseTime = Date.now() - (profile.daysAgo * 86400000) - (Math.random() * daySpread * 86400000);
-
-        exercises[ex.id] = {
-          status: correct ? 'correct' : 'incorrect',
-          attempts: correct ? 1 : 1 + Math.floor(Math.random() * (profile.baseAccuracy < 0.4 ? 4 : 2)),
-          hintUsed,
-          working,
-          timestamp: new Date(exerciseTime).toISOString()
-        };
+        exercises[ex.id] = { status: correct ? 'correct' : 'incorrect', attempts: correct ? 1 : 1 + Math.floor(Math.random() * (profile.baseAccuracy < 0.4 ? 4 : 2)), hintUsed, working, timestamp: new Date(exerciseTime).toISOString() };
       });
 
       const lastActiveTime = Date.now() - profile.daysAgo * 86400000;
-
-      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({
-        userId: uid,
-        firstName: displayName,
-        email: email,
-        exercises,
-        startedAt: new Date(lastActiveTime - 14 * 86400000).toISOString(),
-        lastActive: new Date(lastActiveTime).toISOString()
-      }));
+      localStorage.setItem(`ba_progress_${uid}`, JSON.stringify({ userId: uid, firstName: displayName, email: email, exercises, startedAt: new Date(lastActiveTime - 14 * 86400000).toISOString(), lastActive: new Date(lastActiveTime).toISOString() }));
     });
 
     localStorage.setItem('ba_roster', JSON.stringify(roster));
@@ -2189,10 +1909,9 @@ const Teacher = {
       return;
     }
 
-    // Clear any prior removal (restores server-sourced emails)
+    // Clear any prior removal
     Whitelist.restore(email);
 
-    // Add to local list if not already a server email
     if (!Whitelist.isFromServer(email)) {
       const whitelist = JSON.parse(localStorage.getItem('ba_email_whitelist') || '[]');
       if (!whitelist.includes(email)) {
