@@ -1,265 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boolean Algebra</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Functions &amp; Parameters — IGCSE 0478</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Anybody:wght@400;600;700;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
-  <!-- ════════════ SIDE MASCOT IMAGES, BERNICE AND BARRY BOOLEAN ════════════ -->
-  <img src="assets/images/barry-boolean-laptop.png" alt="Barry Boolean" class="side-mascot left">
-  <img src="assets/images/bernice-boolean-thinking.png" alt="Bernice Boolean" class="side-mascot right">
-
-
-  <!-- ════════════ TOP NAVIGATION ════════════ -->
-  <nav class="top-nav hidden" id="top-nav">
-    <a class="nav-brand" href="#" onclick="App.navigate('dashboard')">
-      <span class="brand-icon">Boolean Algebra Revision Hub</span>
-     
-    </a>
-    <button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="App.toggleMobileNav()">☰</button>
-    <div class="nav-links" id="nav-links">
-      <button class="nav-link active" data-screen="dashboard" onclick="App.navigate('dashboard')">Dashboard</button>
-      <button class="nav-link" data-screen="learn" onclick="App.navigate('learn')">Learn</button>
-      <button class="nav-link" data-screen="practice" onclick="App.navigate('practice')">Practice</button>
-      <button class="nav-link" data-screen="teacher" id="nav-teacher-link" onclick="App.navigate('teacher')">Teacher</button>
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="loginScreen" class="fullscreen login-bg">
+  <div class="login-card">
+    <div class="login-header">
+      <img id="loginWinston" src="images/winston-wave.png" class="login-winston" alt="Winston"/>
+      <h1>Functions &amp; Parameters</h1>
+      <p>Cambridge IGCSE Computer Science</p>
     </div>
-    <div class="nav-user">
-      <div class="nav-avatar" id="nav-avatar"></div>
-      <span class="nav-username" id="nav-username"></span>
-      <button class="btn-logout" onclick="App.logout()">Log out</button>
+    <div class="login-tabs">
+      <button class="ltab active" data-role="student">Student</button>
+      <button class="ltab" data-role="teacher">Teacher</button>
     </div>
-  </nav>
-
-  <!-- ════════════ LOGIN SCREEN ════════════ -->
-  <div class="screen active" id="login-screen">
-    <div class="login-card">
-      <div class="login-icon">
-        <img src="assets/images/barry-and-bernice-login.png" alt="Barry and Bernice Boolean"/>
+    <div id="loginForm">
+      <label>School Email</label>
+      <input type="email" id="loginEmail" placeholder="firstName.lastName@student.cga.school" autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Your password"/>
+      <div id="classCodeWrap">
+        <label>Class Code <span style="font-weight:400;opacity:.5">(first sign-in only)</span></label>
+        <input type="text" id="classCode" placeholder="e.g. A3F9K2" autocomplete="off" maxlength="8" style="text-transform:uppercase"/>
       </div>
-      <h1>Boolean Algebra</br>
-      Revision Hub</h1>
-      <p class="subtitle">
-        Interactive Boolean Algebra Practice
-        <br><span>Cambridge A2 Computer Science 9618</span>
-      </p>
+      <p class="login-hint" id="loginHint">First time? Entering your details will create your account.</p>
+      <button class="btn-login" id="loginBtn">Sign In</button>
+      <div class="login-error hidden" id="loginError"></div>
+      <div class="login-spinner hidden" id="loginSpinner">Signing in...</div>
+    </div>
+    <footer class="login-footer">
+      <p>&copy; Crimson Global Academy 2026</p>
+    </footer>
+  </div>
+</div>
 
-      <div class="role-toggle" id="role-toggle">
-        <button class="active" data-role="student" onclick="App.setRole('student')">Student</button>
-        <button data-role="teacher" onclick="App.setRole('teacher')">Teacher</button>
-      </div>
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="appShell" class="hidden">
 
-      <form id="login-form" onsubmit="App.login(event)">
-        <div class="input-group">
-          <label for="school-email">School Email Address</label>
-          <input type="email" id="school-email" placeholder="e.g. alex.chen@student.cga.school" required autocomplete="email" oninput="App._updateTeacherFields()">
-        </div>
-        <div class="input-group" id="password-group" style="display:none;">
-          <label for="teacher-password" id="password-label">Password</label>
-          <input type="password" id="teacher-password" placeholder="Enter your password" autocomplete="current-password">
-        </div>
-        <div class="input-group" id="password-confirm-group" style="display:none;">
-          <label for="teacher-password-confirm">Confirm Password</label>
-          <input type="password" id="teacher-password-confirm" placeholder="Re-enter your password" autocomplete="new-password">
-        </div>
-        <div class="login-hint" id="login-hint"></div>
-        <div class="login-error" id="login-error"></div>
-        <button type="submit" class="btn btn-primary btn-lg btn-full" style="margin-top:8px;">
-          Enter →
-        </button>
-      </form>
+<header id="topbar">
+  <div class="brand">
+    <span class="chip-logo">
+      <img src="images/winston.png" class="chip-winston" alt="Winston"/>
+    </span>
+    <span class="brand-title">Procedures, Functions &amp; Parameter Passing</span>
+  </div>
+  <nav class="tabs" id="mainTabs"></nav>
+  <div class="user-badge" id="userBadge"></div>
+</header>
+
+<!-- ═══════ TEACHER DEMO ═══════ -->
+<section id="view-demo" class="view hidden">
+  <div class="demo-topstrip">
+    <div class="scenario-pills">
+      <button class="pill active" data-idx="0"><b>1</b> No Params</button>
+      <button class="pill" data-idx="1"><b>2</b> One Param</button>
+      <button class="pill" data-idx="2"><b>3</b> Two Params</button>
+      <button class="pill" data-idx="3"><b>4</b> Return Value</button>
+      <button class="pill" data-idx="4"><b>5</b> ByVal vs ByRef</button>
+    </div>
+    <div class="strip-right">
+      <button class="lang-btn" id="langBtn">Show Java</button>
+      <button class="reset-btn" id="resetBtn">↻ Reset</button>
     </div>
   </div>
-
-  <!-- ════════════ STUDENT DASHBOARD ════════════ -->
-  <div class="screen" id="dashboard-screen">
-    <div class="container">
-      <div class="dashboard-header">
-        <h1 id="dashboard-greeting">Welcome back</h1>
-        <p>Your Boolean Algebra progress at a glance.</p>
-        <button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="Dashboard.resetProgress()">🔄 Reset My Progress</button>
-      </div>
-
-      <div class="stat-grid" id="stat-grid">
-        <!-- Filled by JS -->
-      </div>
-
-      <h2 style="margin-bottom:16px;">Topics</h2>
-      <div class="category-grid" id="category-grid">
-        <!-- Filled by JS -->
+  <div class="instr" id="instr">Drag the highlighted argument from the Main Program into the matching parameter slot.</div>
+  <div class="board">
+    <div class="output-row hidden" id="outputStrip">
+      <div class="output-strip"><div class="output-label">OUTPUT</div><div class="output-text" id="outputText"></div></div>
+    </div>
+    <div class="row-label rl-proc">Procedure Example</div>
+    <div class="panel panel-left" id="panelLeft">
+      <div class="panel-banner">Main Program</div>
+      <div class="panel-code" id="mainCode"></div>
+    </div>
+    <div class="flow-bridge" id="flowBridge">
+      <div class="bridge-label" id="bridgeLabel">arguments<br/>pass →</div>
+      <svg class="bridge-svg" viewBox="0 0 50 24"><line x1="2" y1="12" x2="42" y2="12" stroke="#E87205" stroke-width="3" stroke-dasharray="6,4"/><polygon points="42,6 50,12 42,18" fill="#E87205"/></svg>
+      <div class="bridge-return hidden" id="bridgeLabelReturn">
+        <svg class="bridge-svg" viewBox="0 0 50 24"><line x1="8" y1="12" x2="48" y2="12" stroke="#5b000b" stroke-width="3" stroke-dasharray="6,4"/><polygon points="8,6 0,12 8,18" fill="#5b000b"/></svg>
+        <span class="bridge-label-r">← returns<br/>value</span>
       </div>
     </div>
-  </div>
-
-  <!-- ════════════ LEARN SCREEN ════════════ -->
-  <div class="screen" id="learn-screen">
-    <div class="container">
-      <div class="learn-header">
-        <h1>Boolean Algebra Laws</h1>
-        <p>Reference guide for all laws needed in CIE 9618. Click any card to practice related exercises.</p>
-      </div>
-      <div class="law-cards" id="law-cards">
-        <!-- Filled by JS -->
+    <div class="panel panel-right" id="panelRight">
+      <div class="panel-banner" id="defBanner">Procedure Definition</div>
+      <div class="panel-code" id="defCode"></div>
+    </div>
+    <div class="row-label rl-func" id="funcRowLabel">Function Example</div>
+    <div class="panel panel-left" id="panelLeft2">
+      <div class="panel-banner">Main Program</div>
+      <div class="panel-code" id="mainCode2"></div>
+    </div>
+    <div class="flow-bridge" id="flowBridge2">
+      <div class="bridge-label">arguments<br/>pass →</div>
+      <svg class="bridge-svg" viewBox="0 0 50 24"><line x1="2" y1="12" x2="42" y2="12" stroke="#E87205" stroke-width="3" stroke-dasharray="6,4"/><polygon points="42,6 50,12 42,18" fill="#E87205"/></svg>
+      <div class="bridge-return" id="bridgeLabelReturn2">
+        <svg class="bridge-svg" viewBox="0 0 50 24"><line x1="8" y1="12" x2="48" y2="12" stroke="#5b000b" stroke-width="3" stroke-dasharray="6,4"/><polygon points="8,6 0,12 8,18" fill="#5b000b"/></svg>
+        <span class="bridge-label-r">← returns<br/>value</span>
       </div>
     </div>
-  </div>
-
-  <!-- ════════════ PRACTICE SCREEN ════════════ -->
-  <div class="screen" id="practice-screen">
-    <div class="container">
-      <div class="practice-header">
-        <div>
-          <h2>Practice</h2>
-          <p style="font-size:0.88rem;color:var(--text-muted);">
-            <span id="practice-filter-label">All exercises</span>
-            &nbsp;·&nbsp;
-            <span class="streak-display" id="streak-display">🔥 0 streak</span>
-          </p>
-        </div>
-        <div class="practice-filters" id="practice-filters">
-          <!-- Filled by JS -->
-        </div>
-      </div>
-
-      <div class="exercise-area" id="exercise-area">
-        <!-- Current exercise rendered here by JS -->
-      </div>
+    <div class="panel panel-right" id="panelRight2">
+      <div class="panel-banner" id="defBanner2">Function Definition</div>
+      <div class="panel-code" id="defCode2"></div>
     </div>
   </div>
-
-  <!-- ════════════ TEACHER DASHBOARD ════════════ -->
-  <div class="screen" id="teacher-screen">
-    <div class="container">
-      <div class="teacher-header">
-        <h1>Teacher Dashboard</h1>
-        <p>Monitor student progress, identify struggling areas, and get targeted intervention suggestions.</p>
-        <div class="import-export-area" style="margin-top:16px;">
-          <button class="btn btn-secondary btn-sm" onclick="Teacher.exportAllData()">⬇ Export Class Data</button>
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">⬆ Import Student Data</button>
-          <input type="file" id="import-file" accept=".json" style="display:none" onchange="Teacher.importData(event)">
-          <button class="btn btn-secondary btn-sm" onclick="Teacher.generateDemoData()">🧪 Generate Demo Data</button>
-          <button class="btn btn-secondary btn-sm" onclick="Teacher.resetTeacherPassword()">🔑 Reset Password</button>
-        </div>
-      </div>
-
-      <!-- ── Approved Emails Management ── -->
-      <div class="teacher-card" style="margin-bottom:20px;" id="email-manager-card">
-        <h3>🔐 Approved Student Emails <span class="student-count-badge" id="email-count-badge">0</span></h3>
-        <p class="teacher-card-desc">Only students with approved <strong>@student.cga.school</strong> emails can log in. The shared list is loaded from <code>data/whitelist.json</code> in your GitHub repo. You can also add emails locally for immediate access, then export and commit to make them permanent.</p>
-        <div class="email-manager-actions">
-          <div class="email-add-row">
-            <input type="email" class="student-search" id="email-add-input" placeholder="firstname.lastname@student.cga.school" onkeydown="if(event.key==='Enter'){event.preventDefault();Teacher.addEmail();}">
-            <button class="btn btn-primary btn-sm" onclick="Teacher.addEmail()">+ Add</button>
-          </div>
-          <div class="email-upload-row">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('email-upload-file').click()">⬆ Upload Email List (.csv or .txt)</button>
-            <input type="file" id="email-upload-file" accept=".csv,.txt" style="display:none" onchange="Teacher.uploadEmails(event)">
-            <button class="btn btn-secondary btn-sm" onclick="Teacher.exportEmails()">⬇ Export whitelist.json for GitHub</button>
-          </div>
-        </div>
-        <div class="email-list" id="email-list">
-          <!-- Filled by JS -->
-        </div>
-      </div>
-
-      <!-- ── Class-wide Overview Stats ── -->
-      <div class="class-overview-grid" id="class-overview-grid">
-        <!-- Filled by JS -->
-      </div>
-
-      <!-- ── Suggestions (moves contextually via JS) ── -->
-      <div class="suggestion-box" id="suggestion-box">
-        <h4>💡 Intervention Suggestions — <span id="suggestion-target">Class Overview</span></h4>
-        <div id="suggestion-content"></div>
-      </div>
-
-      <!-- ── Class Topic Performance Chart ── -->
-      <div class="teacher-card" style="margin-bottom:20px;">
-        <h3>📊 Class Topic Performance</h3>
-        <p class="teacher-card-desc">Average accuracy across all students per topic. Identifies class-wide weak areas.</p>
-        <div class="class-chart-wrap">
-          <canvas id="class-bar-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- ── Student List + Detail ── -->
-      <div class="teacher-grid">
-        <div class="teacher-card teacher-card-students">
-          <h3>📋 Students <span class="student-count-badge" id="student-count-badge">0</span></h3>
-          <div class="student-search-wrap">
-            <input type="text" class="student-search" id="student-search" placeholder="Search students…" oninput="Teacher.filterStudents()">
-          </div>
-          <div class="student-sort-wrap">
-            <span class="student-sort-label">Sort by:</span>
-            <select class="student-sort-select" id="student-sort" onchange="Teacher.renderStudentList()">
-              <option value="name">Name</option>
-              <option value="accuracy-desc">Accuracy ↓</option>
-              <option value="accuracy-asc">Accuracy ↑</option>
-              <option value="attempted-desc">Attempted ↓</option>
-              <option value="recent">Last Active</option>
-            </select>
-          </div>
-          <div class="student-list" id="student-list">
-            <!-- Filled by JS -->
-          </div>
-        </div>
-
-        <div class="teacher-card teacher-card-detail" id="teacher-detail-card">
-          <h3 id="detail-card-title">📊 Class Overview</h3>
-          <div id="teacher-detail-content">
-            <!-- Filled by JS — shows class overview or student detail -->
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Anchor point: suggestions move here when a student is selected ── -->
-      <div id="student-suggestion-anchor"></div>
-
-      <!-- ── Student Working Viewer ── -->
-      <div class="teacher-card" id="working-viewer-card" style="margin-bottom:20px;display:none;">
-        <h3>📝 Student Working — <span id="working-viewer-name"></span></h3>
-        <p class="teacher-card-desc">Review the student's step-by-step working for each exercise they attempted.</p>
-        <div class="working-viewer-filters">
-          <button class="filter-btn active" onclick="Teacher.filterWorking('all')">All</button>
-          <button class="filter-btn" onclick="Teacher.filterWorking('correct')">✓ Correct</button>
-          <button class="filter-btn" onclick="Teacher.filterWorking('incorrect')">✗ Incorrect</button>
-          <button class="filter-btn" onclick="Teacher.filterWorking('hint')">💡 Used Hint</button>
-        </div>
-        <div class="working-viewer-list" id="working-viewer-list">
-          <!-- Filled by JS -->
-        </div>
-      </div>
-
-      <!-- ── Heatmap ── -->
-      <div class="teacher-card" style="margin-bottom:20px;">
-        <h3>🗺️ Exercise Heatmap — <span id="heatmap-student-name">Class Aggregate</span></h3>
-        <p class="teacher-card-desc">Each cell = one of 100 exercises. <span id="heatmap-mode-label">Colour intensity shows how many students answered correctly.</span></p>
-        <div class="heatmap-grid" id="heatmap-grid"></div>
-        <div class="heatmap-legend" id="heatmap-legend">
-          <span><span class="dot" style="background:var(--bg);border:1px solid var(--border)"></span> Not attempted</span>
-          <span><span class="dot" style="background:var(--success)"></span> Correct</span>
-          <span><span class="dot" style="background:var(--error)"></span> Incorrect</span>
-          <span><span class="dot" style="background:var(--warning)"></span> Hint used</span>
-        </div>
-      </div>
-
-      <!-- ── Anchor point: suggestions return here for class view ── -->
-      <div id="class-suggestion-anchor"></div>
+  <div class="java-overlay hidden" id="javaOverlay">
+    <div class="java-box">
+      <div class="java-head">Java Equivalent <button class="java-close" id="javaClose">✕</button></div>
+      <pre class="java-code" id="javaCode"></pre>
     </div>
   </div>
+  <div class="toast" id="toast"></div>
+  <div class="confetti-layer" id="confettiLayer"></div>
+</section>
 
-  <!-- ════════════ TOOLTIP ════════════ -->
-  <div class="tooltip" id="tooltip"></div>
+<!-- ═══════ TEACHER DASHBOARD ═══════ -->
+<section id="view-dashboard" class="view hidden">
+  <div class="dash-wrap">
+    <div class="dash-title-row">
+      <h2 class="dash-title">Student Progress Dashboard</h2>
+      <img src="images/winston-thumbs-up.png" class="dash-winston" alt="Winston"/>
+    </div>
+    <div id="classCodeBanner" class="class-code-banner hidden"></div>
+    <div class="dash-controls">
+      <button class="btn-accent btn-sm" id="dashRefresh">↻ Refresh from Firebase</button>
+      <button class="btn-sm" id="deleteSelected" disabled>Delete Selected</button>
+      <button class="btn-sm" id="manageWhitelist">Manage Whitelist</button>
+    </div>
+    <div class="dash-summary" id="dashSummary"></div>
+    <div class="dash-table-wrap">
+      <table class="dash-table" id="dashTable">
+        <thead><tr><th><input type="checkbox" id="selectAll" title="Select all"></th><th>Student</th><th>Tasks Done</th><th>Tasks In Progress</th><th>Tasks Not Started</th><th>Quiz Score</th><th>Quiz Attempts</th><th>Task Details</th></tr></thead>
+        <tbody id="dashBody"></tbody>
+      </table>
+    </div>
+    <div class="whitelist-editor hidden" id="whitelistEditor">
+      <h3>Manage Whitelist</h3>
+      <p class="setup-hint">Edit the <code>STUDENT_WHITELIST</code> in <code>app.js</code> and redeploy to change which students can sign up.</p>
+      <button class="btn-sm" id="cancelWhitelist">Close</button>
+    </div>
+  </div>
+</section>
 
-  <!-- ════════════ TOAST CONTAINER ════════════ -->
-  <div class="toast-container" id="toast-container"></div>
+<!-- ═══════ QUIZ ═══════ -->
+<section id="view-questions" class="view hidden">
+  <div class="quiz-shell">
+    <aside class="quiz-sidebar">
+      <div class="quiz-side-title">Quiz Questions</div>
+      <div id="quizNav"></div>
+      <div class="quiz-score-box" id="quizScoreBox">
+        <div class="quiz-score-label">Your Score</div>
+        <div class="quiz-score-num" id="quizScoreNum">0 / 12</div>
+        <div class="quiz-attempts" id="quizAttempts">Attempts: 0</div>
+      </div>
+      <img src="images/winston-magnifying-glass.png" class="sidebar-winston" alt="Winston"/>
+    </aside>
+    <main class="quiz-main">
+      <div class="quiz-q-card" id="quizQCard">
+        <div class="quiz-q-num" id="quizQNum">1</div>
+        <div class="quiz-q-body" id="quizQBody"></div>
+      </div>
+      <div class="quiz-answer-area">
+        <label class="quiz-answer-label">Your Answer</label>
+        <textarea id="quizInput" rows="4" placeholder="Type your answer here in full sentences..." spellcheck="true"></textarea>
+        <div class="quiz-answer-btns">
+          <button class="btn-accent" id="quizSubmit">Submit Answer</button>
+          <span class="quiz-attempt-info" id="quizAttemptInfo"></span>
+        </div>
+      </div>
+      <div class="quiz-feedback hidden" id="quizFeedback"></div>
+      <div class="quiz-nav-btns">
+        <button class="btn-sm" id="quizPrev" disabled>← Previous</button>
+        <span class="quiz-pos" id="quizPos">1 / 12</span>
+        <button class="btn-sm" id="quizNext">Next →</button>
+      </div>
+    </main>
+  </div>
+</section>
 
-  <footer>
-    <h6>&copy Crimson Global Academy 2026</h6>
-    <h6>Cambrdige A2 Computer Science 9618</h6>
-  </footer>
-  <script src="scripts/app.js"></script>
+<!-- ═══════ STUDENT TASKS ═══════ -->
+<section id="view-tasks" class="view hidden">
+  <div class="tasks-shell">
+    <aside class="task-side" id="taskSide"></aside>
+    <main class="task-main">
+      <div class="task-nav">
+        <button class="btn-sm" id="prevTask" disabled>← Prev</button>
+        <span class="task-pos" id="taskPos">1 / 22</span>
+        <button class="btn-sm" id="nextTask">Next →</button>
+      </div>
+      <article class="task-card" id="taskCard"></article>
+      <div class="editor-section" id="editorSection">
+        <div class="editor-head">
+          <span class="editor-title">Your Answer</span>
+        </div>
+        <div class="editor-wrap">
+          <div class="line-numbers" id="lineNumbers">1</div>
+          <textarea id="codeEditor" spellcheck="false" autocorrect="off" autocapitalize="none" placeholder="Type your answer here..."></textarea>
+        </div>
+        <div class="editor-btns">
+          <button class="btn-accent" id="submitAnswer">Check My Answer</button>
+          <button class="btn-sm" id="clearEditor">Clear</button>
+          <span class="editor-status" id="editorStatus"></span>
+        </div>
+        <div class="feedback-box hidden" id="feedbackBox"></div>
+      </div>
+      <div class="task-bar"><div class="task-fill" id="taskFill"></div></div>
+    </main>
+  </div>
+</section>
+
+</div><!-- /appShell -->
+
+<!-- Firebase SDK (v9 compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
