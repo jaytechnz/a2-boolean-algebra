@@ -120,11 +120,15 @@
       "answer": "¬A ∨ (¬B ∧ ¬C)",
       "acceptableAnswers": [
         "¬A ∨ (¬B ∧ ¬C)",
+        "¬A ∨ ¬B ∧ ¬C",
+        "¬A ∨ ¬B∧¬C",
         "NOT A OR (NOT B AND NOT C)",
+        "NOT A OR NOT B AND NOT C",
         "A' + B'C'",
         "A' + (B' · C')",
-        "¬A ∨ ¬B∧¬C",
-        "A' OR (B' AND C')"
+        "A' + B' · C'",
+        "A' OR (B' AND C')",
+        "A' OR B' AND C'"
       ],
       "hint": "First apply De Morgan's to the outer ¬AND, then apply De Morgan's again to the inner ¬(B ∨ C).",
       "lawUsed": "De Morgan's Law (Nested Application)",
