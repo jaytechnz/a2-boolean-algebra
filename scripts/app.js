@@ -245,6 +245,7 @@ const db = firebase.firestore();
 // ── Firestore caches (populated async on login/navigate) ──
 let progressCache = null;   // current student's progress
 let studentsCache = [];     // teacher's students (loaded on teacher dashboard)
+let creatingAccount = false; // prevents onAuthStateChanged firing mid-signup
 
 async function loadStudentsCache() {
   if (!currentUser || currentUser.role !== 'teacher') return;
@@ -360,6 +361,7 @@ async function loadExercises() {
 
 // ── Firebase auth state listener — handles login, logout, and page reload ──
 auth.onAuthStateChanged(async (user) => {
+  if (creatingAccount) return; // wait until Firestore docs are written before proceeding
   if (user) {
     try {
       const userDoc = await db.collection('users').doc(user.uid).get();
@@ -479,11 +481,13 @@ const App = {
     } catch (signInErr) {
       if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
         // New user — create account
+        creatingAccount = true;
         try {
           let teacherUid = null;
           if (currentRole === 'student') {
             const code = (document.getElementById('class-code').value || '').trim().toUpperCase();
             if (!code) {
+              creatingAccount = false;
               spinner.style.display = 'none';
               loginError.textContent = 'Enter your class code to create your account.';
               loginError.classList.add('show');
@@ -491,6 +495,7 @@ const App = {
             }
             const codeDoc = await db.collection('classCodes').doc(code).get();
             if (!codeDoc.exists) {
+              creatingAccount = false;
               spinner.style.display = 'none';
               loginError.textContent = 'Invalid class code. Ask your teacher for the correct code.';
               loginError.classList.add('show');
@@ -507,6 +512,7 @@ const App = {
               createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             await db.collection('classCodes').doc(classCode).set({ teacherUid: cred.user.uid });
+            currentUser = { uid: cred.user.uid, email, role: 'teacher', displayName, classCode };
           } else {
             await db.collection('users').doc(cred.user.uid).set({
               email, role: 'student', displayName, teacherUid,
@@ -516,9 +522,13 @@ const App = {
               userId: cred.user.uid, firstName: displayName, email,
               exercises: {}, startedAt: new Date().toISOString(), lastActive: new Date().toISOString()
             });
+            currentUser = { uid: cred.user.uid, email, role: 'student', displayName, teacherUid };
           }
-          // onAuthStateChanged handles enterApp
+          creatingAccount = false;
+          currentRole = currentUser.role;
+          await enterApp();
         } catch (createErr) {
+          creatingAccount = false;
           spinner.style.display = 'none';
           loginError.textContent = createErr.message;
           loginError.classList.add('show');
@@ -591,6 +601,10 @@ async function enterApp() {
   document.getElementById('nav-avatar').textContent = initials;
   document.getElementById('nav-username').textContent = currentUser.displayName || currentUser.email.split('@')[0];
   document.getElementById('nav-teacher-link').style.display = currentUser.role === 'teacher' ? '' : 'none';
+
+  if (currentUser.role === 'teacher' && currentUser.classCode) {
+    document.getElementById('teacher-class-code').textContent = currentUser.classCode;
+  }
 
   App.navigate(currentUser.role === 'teacher' ? 'teacher' : 'dashboard');
 }
