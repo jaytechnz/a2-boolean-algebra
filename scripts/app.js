@@ -643,7 +643,7 @@ const Dashboard = {
 
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    document.getElementById('dashboard-greeting').textContent = `${greeting}, ${currentUser.firstName}`;
+    document.getElementById('dashboard-greeting').textContent = `${greeting}, ${currentUser.displayName}`;
 
     const total = EXERCISES.length;
     const attempted = Object.keys(exercises).length;
