@@ -916,8 +916,7 @@ const Practice = {
     }
 
     // Determine if working is required for this exercise
-    const WORKING_EXEMPT = ['identity_null', 'commutative_associative', 'inverse_complement', 'double_negation'];
-    const workingRequired = !WORKING_EXEMPT.includes(ex.category) && ex.type !== 'identify';
+    const workingRequired = false;
 
     area.innerHTML = `
       <div class="exercise-progress-bar">
@@ -1052,8 +1051,7 @@ const Practice = {
     if (!userAnswer) return;
 
     // Determine if working is required
-    const WORKING_EXEMPT = ['identity_null', 'commutative_associative', 'inverse_complement', 'double_negation'];
-    const workingRequired = !WORKING_EXEMPT.includes(ex.category) && ex.type !== 'identify';
+    const workingRequired = false;
 
     // ── Validate working if required ──
     if (workingRequired) {
@@ -1124,36 +1122,24 @@ const Practice = {
   _validateWorking(working, exercise) {
     const problems = [];
 
-    // ── Determine minimum requirements based on category + difficulty ──
-    // Simple single-law applications need less working than multi-step chains.
     const cat = exercise.category;
     const diff = exercise.difficulty;
 
-    // Minimum line counts by category
-    //   absorption, de_morgan (easy): 1 line is enough — just state the law + result
-    //   distributive, de_morgan (medium+): 2 lines
-    //   multi_step, cie_exam: 2 lines minimum (hard = 3)
-    let minLines, minLength;
-    if (['absorption'].includes(cat)) {
-      minLines = 1; 
-      minLength = 12;
-    } else if (cat === 'de_morgan' && diff <= 1) {
-      minLines = 1; 
-      minLength = 12;
-    } else if (['distributive', 'de_morgan'].includes(cat) && diff <= 2) {
-      minLines = 1; 
-      minLength = 15;
-    } else if (['multi_step', 'cie_exam'].includes(cat) && diff >= 3) {
-      minLines = 2; 
-      minLength = 20;
-    } else {
-      minLines = 1; 
-      minLength = 15;
-    }
+    // Single-step exercises (easy difficulty or absorption): just name the law, no length minimum.
+    // Multi-step exercises: require more substantial working.
+    const isSingleStep = diff <= 1 || cat === 'absorption';
+    const isMultiStep  = ['multi_step', 'cie_exam'].includes(cat) && diff >= 3;
 
-    // 1. Must exist and meet minimum length
-    if (!working || working.length < minLength) {
+    const minLines  = isMultiStep ? 2 : 1;
+    const minLength = isMultiStep ? 20 : (isSingleStep ? 0 : 15);
+
+    // 1. Must exist (single-step) or meet minimum length (multi-step)
+    if (!working || (!isSingleStep && working.length < minLength)) {
       problems.push(`Your working is too short. Show your simplification step${minLines > 1 ? 's' : ''} with the law you applied.`);
+      return problems;
+    }
+    if (!working.trim()) {
+      problems.push('Show which law you applied (e.g. [De Morgan\'s], [Absorption]).');
       return problems;
     }
 
