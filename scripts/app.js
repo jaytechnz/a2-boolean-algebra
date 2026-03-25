@@ -2290,7 +2290,7 @@ const KMap = {
   _renderStep3(ex, status) {
     const locked = status === 'locked';
     const done   = status === 'done';
-    const gridHTML = this._kmapGridHTML(ex.minterms, 'values');
+    const gridHTML = this._kmapGridHTML(ex.minterms, 'blank');
 
     const swatches = this._loopColors.map((c, i) =>
       `<div class="kmap-loop-swatch ${i === this._currentColor ? 'active' : ''}"
@@ -2628,6 +2628,11 @@ const KMap = {
           cells += `<div class="kmap-cell ${val ? 'cell-one' : 'cell-zero'}" data-r="${r}" data-c="${c}">
             <span class="cell-mt">${mt}</span>
             <span class="cell-val">${val}</span>
+          </div>`;
+        } else if (mode === 'blank') {
+          // Empty grid for loop drawing — no values shown
+          cells += `<div class="kmap-cell cell-zero" data-r="${r}" data-c="${c}" style="cursor:default;">
+            <span class="cell-mt">${mt}</span>
           </div>`;
         } else {
           // fillable: default 0, student clicks to toggle
