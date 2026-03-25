@@ -62,8 +62,35 @@ function renderCIE(str) {
   if (!str) return '';
   // Step 1 — convert AND/OR operators to CIE symbols
   let s = str.replace(/∧/g, '·').replace(/∨/g, '+');
-  // Step 2 — convert ¬ prefix notation into <span class="ol"> overline HTML
+  // Step 2 — convert postfix prime notation (A', (A+B)') to prefix ¬ so
+  //           exercise text stored in prime form renders overbars correctly
+  s = _primesToNeg(s);
+  // Step 3 — convert ¬ prefix notation into <span class="ol"> overline HTML
   return processOverline(s);
+}
+
+// Convert postfix prime notation to prefix ¬  (shared by renderCIE and renderTypedInput)
+function _primesToNeg(s) {
+  let safety = 0;
+  while (s.includes("'") && safety < 50) {
+    safety++;
+    let found = false;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] !== "'") continue;
+      if (i > 0 && s[i - 1] === ')') {
+        let depth = 1, j = i - 2;
+        while (j >= 0 && depth > 0) { if (s[j] === ')') depth++; if (s[j] === '(') depth--; j--; }
+        j++;
+        s = s.substring(0, j) + '¬' + s.substring(j, i) + s.substring(i + 1);
+        found = true; break;
+      } else if (i > 0 && /[A-Za-z0-9]/.test(s[i - 1])) {
+        s = s.substring(0, i - 1) + '¬' + s[i - 1] + s.substring(i + 1);
+        found = true; break;
+      }
+    }
+    if (!found) break;
+  }
+  return s;
 }
 
 function processOverline(s) {
@@ -144,31 +171,14 @@ function renderTypedInput(raw) {
   // Escape HTML
   let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // Normalise smart/curly apostrophes (macOS/iOS autocorrect) to plain ASCII '
+  s = s.replace(/[\u2018\u2019\u02BC]/g, "'");
+
   // Convert ! prefix to ¬
   s = s.replace(/!/g, '¬');
 
-  // Convert postfix ' to prefix ¬.
-  // Only treat ' as NOT when preceded by uppercase A-Z, digit 0-9, or closing paren.
-  // Process left-to-right so A'' (double NOT) nests correctly.
-  let safety = 0;
-  while (s.includes("'") && safety < 50) {
-    safety++;
-    let found = false;
-    for (let i = 0; i < s.length; i++) {
-      if (s[i] !== "'") continue;
-      if (i > 0 && s[i - 1] === ')') {
-        let depth = 1, j = i - 2;
-        while (j >= 0 && depth > 0) { if (s[j] === ')') depth++; if (s[j] === '(') depth--; j--; }
-        j++;
-        s = s.substring(0, j) + '¬' + s.substring(j, i) + s.substring(i + 1);
-        found = true; break;
-      } else if (i > 0 && /[A-Z0-9]/.test(s[i - 1])) {
-        s = s.substring(0, i - 1) + '¬' + s[i - 1] + s.substring(i + 1);
-        found = true; break;
-      }
-    }
-    if (!found) break;
-  }
+  // Convert postfix ' to prefix ¬ (shared helper, also handles lowercase)
+  s = _primesToNeg(s);
 
   // Convert . to · for CIE AND display
   s = s.replace(/\./g, '·');
@@ -1549,40 +1559,104 @@ const Teacher = {
         <div class="detail-section"><h4>Topic Breakdown</h4>${catBreakdown}</div>
         <div class="detail-section"><h4>Law-by-Law Accuracy</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">H = hint used. Shows which specific laws are causing difficulty.</p>${lawBreakdown || '<p style="font-size:0.85rem;color:var(--text-muted);">No exercises attempted yet.</p>'}</div>
         <div class="detail-section"><h4>Difficulty Breakdown</h4><p class="diff-breakdown">${diffBreakdown}</p></div>
-        <div class="detail-section" style="margin-bottom:0;"><h4>Understanding Radar</h4><div class="chart-container"><canvas id="radar-chart"></canvas></div></div>
+        <div class="detail-section" style="margin-bottom:0;"><h4>Mastery Breakdown</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Per topic: how many exercises were correct independently, correct only with a hint, incorrect, or not yet attempted.</p><div style="width:100%;overflow:hidden;"><canvas id="mastery-chart"></canvas></div></div>
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="Teacher.resetStudentProgress('${uid}')">🔄 Reset Progress</button>
           <button class="btn btn-secondary btn-sm" onclick="Teacher.removeStudent('${uid}')">🗑 Remove Student</button>
         </div>
       </div>`;
-    this.drawRadarChart(uid);
+    this.drawMasteryChart(uid);
   },
 
-  drawRadarChart(uid) {
-    const canvas = document.getElementById('radar-chart');
+  drawMasteryChart(uid) {
+    const canvas = document.getElementById('mastery-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const progress = getProgress(uid);
     const exercises = progress?.exercises || {};
-    const labels = [], data = [];
-    for (const [key, meta] of Object.entries(CATEGORIES)) {
-      labels.push(meta.name.split(' ')[0]);
+
+    const rows = Object.entries(CATEGORIES).map(([key, meta]) => {
       const ce = EXERCISES.filter(e => e.category === key);
-      const cc = ce.filter(e => exercises[e.id]?.status === 'correct').length;
-      data.push(ce.length > 0 ? (cc / ce.length) * 100 : 0);
-    }
-    const size = 320, dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr; canvas.height = size * dpr;
-    canvas.style.width = size + 'px'; canvas.style.height = size + 'px';
+      const correctClean = ce.filter(e => exercises[e.id]?.status === 'correct' && !exercises[e.id]?.hintUsed).length;
+      const correctHint  = ce.filter(e => exercises[e.id]?.status === 'correct' &&  exercises[e.id]?.hintUsed).length;
+      const incorrect    = ce.filter(e => exercises[e.id]?.status === 'incorrect').length;
+      const notAttempted = ce.length - correctClean - correctHint - incorrect;
+      return { label: meta.name, total: ce.length, correctClean, correctHint, incorrect, notAttempted };
+    });
+
+    const dpr = window.devicePixelRatio || 1;
+    const w   = canvas.parentElement.clientWidth || 480;
+    const labelW = 112, mR = 10, mT = 6, mB = 40;
+    const rowH = 30, barH = 16;
+    const h = mT + rows.length * rowH + mB;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
     ctx.scale(dpr, dpr);
-    const cx = size / 2, cy = size / 2, r = 120, n = labels.length;
-    const step = (Math.PI * 2) / n, start = -Math.PI / 2;
-    ctx.clearRect(0, 0, size, size);
-    for (let ring = 1; ring <= 4; ring++) { const rr = (r * ring) / 4; ctx.beginPath(); for (let i = 0; i <= n; i++) { const a = start + step * i, x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.closePath(); ctx.strokeStyle = '#E2E4F0'; ctx.lineWidth = 1; ctx.stroke(); }
-    ctx.font = '10px DM Sans, sans-serif'; ctx.fillStyle = '#8B8FA8'; ctx.textAlign = 'center';
-    for (let i = 0; i < n; i++) { const a = start + step * i; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.strokeStyle = '#E2E4F0'; ctx.stroke(); ctx.fillText(labels[i], cx + Math.cos(a) * (r + 18), cy + Math.sin(a) * (r + 18) + 3); }
-    ctx.beginPath(); for (let i = 0; i < n; i++) { const a = start + step * i, v = data[i] / 100; const x = cx + Math.cos(a) * r * v, y = cy + Math.sin(a) * r * v; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.closePath(); ctx.fillStyle = 'rgba(84,120,255,0.18)'; ctx.fill(); ctx.strokeStyle = '#5478FF'; ctx.lineWidth = 2; ctx.stroke();
-    for (let i = 0; i < n; i++) { const a = start + step * i, v = data[i] / 100; const x = cx + Math.cos(a) * r * v, y = cy + Math.sin(a) * r * v; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = '#5478FF'; ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.clearRect(0, 0, w, h);
+
+    const barW = w - labelW - mR;
+    const COLORS     = ['#22C55E', '#F59E0B', '#EF4444', '#E2E4F0'];
+    const TXT_COLORS = ['#fff',    '#fff',    '#fff',    '#9CA3AF'];
+
+    rows.forEach((row, i) => {
+      const y = mT + i * rowH + (rowH - barH) / 2;
+
+      // Category label — truncate if needed
+      ctx.font = '11px DM Sans, sans-serif';
+      ctx.fillStyle = '#5A5F7A';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const lbl = row.label.length > 17 ? row.label.slice(0, 16) + '…' : row.label;
+      ctx.fillText(lbl, labelW - 8, y + barH / 2);
+
+      // Grey background track
+      ctx.fillStyle = '#ECEEF6';
+      ctx.beginPath();
+      ctx.roundRect(labelW, y, barW, barH, 4);
+      ctx.fill();
+
+      // Clip to track shape so segments stay rounded
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(labelW, y, barW, barH, 4);
+      ctx.clip();
+
+      // Stacked segments: correct / correct+hint / incorrect / not attempted
+      const counts = [row.correctClean, row.correctHint, row.incorrect, row.notAttempted];
+      let xOff = labelW;
+      counts.forEach((count, ci) => {
+        if (count === 0) return;
+        const sw = (count / row.total) * barW;
+        ctx.fillStyle = COLORS[ci];
+        ctx.fillRect(xOff, y, sw, barH);
+        if (sw >= 18) {
+          ctx.font = 'bold 9px DM Sans, sans-serif';
+          ctx.fillStyle = TXT_COLORS[ci];
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(count, xOff + sw / 2, y + barH / 2);
+        }
+        xOff += sw;
+      });
+
+      ctx.restore();
+    });
+
+    // Legend
+    const ly = mT + rows.length * rowH + 12;
+    const legendItems = ['Correct', 'Correct (hint)', 'Incorrect', 'Not attempted'];
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textBaseline = 'middle';
+    let lx = labelW;
+    legendItems.forEach((label, i) => {
+      ctx.fillStyle = COLORS[i];
+      ctx.fillRect(lx, ly, 10, 10);
+      if (i === 3) { ctx.strokeStyle = '#D1D5E0'; ctx.lineWidth = 1; ctx.strokeRect(lx, ly, 10, 10); }
+      ctx.fillStyle = '#5A5F7A';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, lx + 13, ly + 5);
+      lx += ctx.measureText(label).width + 26;
+    });
   },
 
   // ── Working Viewer ──

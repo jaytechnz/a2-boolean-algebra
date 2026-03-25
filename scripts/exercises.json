@@ -1681,60 +1681,60 @@
       "id": 89,
       "category": "cie_exam",
       "difficulty": 2,
-      "type": "truth_table",
-      "title": "CIE Style – Truth Table Verification",
-      "question": "Verify using a truth table that ¬(A ∧ B) = ¬A ∨ ¬B. What are the output values for the four input combinations (A=0,B=0), (A=0,B=1), (A=1,B=0), (A=1,B=1)?",
-      "expression": "¬(A ∧ B) vs ¬A ∨ ¬B",
-      "answer": "1, 1, 1, 0",
+      "type": "simplify",
+      "title": "CIE Style – Distributive Simplification",
+      "question": "Simplify, naming the law at each step: A ∧ (¬A ∨ B)",
+      "expression": "A ∧ (¬A ∨ B)",
+      "answer": "A ∧ B",
       "acceptableAnswers": [
-        "1, 1, 1, 0",
-        "1,1,1,0",
-        "1 1 1 0",
-        "1110"
+        "A ∧ B",
+        "A AND B",
+        "A.B",
+        "AB",
+        "A·B",
+        "A∧B"
       ],
-      "hint": "Evaluate ¬(A ∧ B) for each combination: (0,0)→¬(0)=1, (0,1)→¬(0)=1, (1,0)→¬(0)=1, (1,1)→¬(1)=0.",
-      "lawUsed": "De Morgan's First Law (Truth Table Proof)",
-      "explanation": "For all four input combinations, ¬(A ∧ B) and ¬A ∨ ¬B produce identical outputs: 1, 1, 1, 0. This verifies De Morgan's First Law."
+      "hint": "Expand using the Distributive Law. One of the resulting terms contains A ∧ ¬A — what does that simplify to?",
+      "lawUsed": "Distributive + Complement + Identity Laws",
+      "explanation": "A ∧ (¬A ∨ B) = (A ∧ ¬A) ∨ (A ∧ B) [Distributive] = 0 ∨ (A ∧ B) [Complement] = A ∧ B [Identity]."
     },
     {
       "id": 90,
       "category": "cie_exam",
       "difficulty": 3,
       "type": "simplify",
-      "title": "CIE Style – SOP to Simplified",
-      "question": "Simplify the Sum of Products: A'BC + AB'C + ABC' + ABC",
-      "expression": "¬A∧B∧C ∨ A∧¬B∧C ∨ A∧B∧¬C ∨ A∧B∧C",
-      "answer": "(A ∧ B) ∨ (A ∧ C) ∨ (B ∧ C)",
+      "title": "CIE Style – Three-Term Simplification",
+      "question": "Simplify fully, showing each law used: (A ∧ B ∧ C) ∨ (A ∧ B ∧ ¬C) ∨ (A ∧ ¬B)",
+      "expression": "(A ∧ B ∧ C) ∨ (A ∧ B ∧ ¬C) ∨ (A ∧ ¬B)",
+      "answer": "A",
       "acceptableAnswers": [
-        "(A ∧ B) ∨ (A ∧ C) ∨ (B ∧ C)",
-        "AB + AC + BC",
-        "AB+AC+BC",
-        "(A AND B) OR (A AND C) OR (B AND C)",
-        "BC + AC + AB"
+        "A"
       ],
-      "hint": "Group terms that differ by one variable. ABC pairs with each of the other three terms.",
-      "lawUsed": "Distributive + Complement Laws (Multiple Application)",
-      "explanation": "Pair ABC with A'BC: BC(A∨¬A) = BC. Pair ABC with AB'C: AC(B∨¬B) = AC. Pair ABC with ABC': AB(C∨¬C) = AB. Result: AB ∨ AC ∨ BC."
+      "hint": "Combine the first two terms using Distributive and Complement laws first. Then combine the result with the third term.",
+      "lawUsed": "Distributive + Complement + Identity Laws",
+      "explanation": "Step 1: (A∧B∧C) ∨ (A∧B∧¬C) = A∧B∧(C∨¬C) = A∧B∧1 = A∧B [Distributive + Complement + Identity]. Step 2: (A∧B) ∨ (A∧¬B) = A∧(B∨¬B) = A∧1 = A [same laws]."
     },
     {
       "id": 91,
       "category": "cie_exam",
       "difficulty": 2,
       "type": "simplify",
-      "title": "CIE Style – Named Law Application",
-      "question": "State which Boolean law simplifies the expression A ∨ (¬A ∧ B) to A ∨ B.",
-      "expression": "A ∨ (¬A ∧ B) = A ∨ B",
-      "answer": "Absorption Law",
+      "title": "CIE Style – Complement Elimination",
+      "question": "Simplify, naming the law at each step: (A ∨ B) ∧ ¬B",
+      "expression": "(A ∨ B) ∧ ¬B",
+      "answer": "A ∧ ¬B",
       "acceptableAnswers": [
-        "Absorption Law",
-        "Absorption",
-        "absorption",
-        "Complement variant of Absorption",
-        "Distributive and Complement"
+        "A ∧ ¬B",
+        "A AND NOT B",
+        "A.B'",
+        "AB'",
+        "A·B'",
+        "¬B ∧ A",
+        "NOT B AND A"
       ],
-      "hint": "This is a well-known simplification pattern. Think about how A 'absorbs' part of the second term.",
-      "lawUsed": "Absorption Law (Complement Variant)",
-      "explanation": "This is the complement variant of the Absorption Law. Proof: A ∨ (¬A∧B) = (A∨¬A)∧(A∨B) = 1∧(A∨B) = A∨B."
+      "hint": "Distribute ¬B across the brackets. One of the resulting terms will cancel completely using the Complement Law.",
+      "lawUsed": "Distributive + Complement + Identity Laws",
+      "explanation": "(A∨B) ∧ ¬B = (A∧¬B) ∨ (B∧¬B) [Distributive] = (A∧¬B) ∨ 0 [Complement] = A∧¬B [Identity]."
     },
     {
       "id": 92,
@@ -1762,20 +1762,19 @@
       "category": "cie_exam",
       "difficulty": 3,
       "type": "simplify",
-      "title": "CIE Style – Prove Equivalence",
-      "question": "Prove algebraically that ¬(A) ∧ (A ∨ B) = ¬(A) ∧ B",
-      "expression": "¬A ∧ (A ∨ B) = ¬A ∧ B",
-      "answer": "¬A ∧ B",
+      "title": "CIE Style – De Morgan's and Factoring",
+      "question": "Simplify fully, showing each law used: ¬(A ∨ ¬B) ∨ (¬A ∧ ¬B)",
+      "expression": "¬(A ∨ ¬B) ∨ (¬A ∧ ¬B)",
+      "answer": "¬A",
       "acceptableAnswers": [
-        "¬A ∧ B",
-        "NOT A AND B",
-        "A'B",
-        "A' · B",
-        "A'·B"
+        "¬A",
+        "NOT A",
+        "A'",
+        "!A"
       ],
-      "hint": "Distribute ¬A over the OR, then use the Complement Law.",
-      "lawUsed": "Distributive + Complement + Identity Laws",
-      "explanation": "¬A ∧ (A ∨ B) = (¬A ∧ A) ∨ (¬A ∧ B) [Distributive] = 0 ∨ (¬A ∧ B) [Complement] = ¬A ∧ B [Identity]."
+      "hint": "Apply De Morgan's Law to the first term. Then look for a common factor between the two resulting terms.",
+      "lawUsed": "De Morgan's + Distributive + Complement + Identity Laws",
+      "explanation": "Step 1: ¬(A∨¬B) = ¬A∧B [De Morgan's]. Step 2: (¬A∧B) ∨ (¬A∧¬B) = ¬A∧(B∨¬B) [Distributive] = ¬A∧1 [Complement] = ¬A [Identity]."
     },
     {
       "id": 94,
@@ -1798,34 +1797,38 @@
       "category": "cie_exam",
       "difficulty": 3,
       "type": "simplify",
-      "title": "CIE Style – NAND Expression",
-      "question": "Express using only NAND: The expression ¬(A) can be written as A NAND A. Write (¬A) ∧ (¬B) using NAND notation.",
-      "expression": "¬A ∧ ¬B",
-      "answer": "(A NAND A) NAND (B NAND B)",
+      "title": "CIE Style – Three-Variable Reduction",
+      "question": "Simplify fully, showing each law used: (A ∧ (B ∨ C)) ∨ (¬A ∧ B) ∨ (¬A ∧ C)",
+      "expression": "(A ∧ (B ∨ C)) ∨ (¬A ∧ B) ∨ (¬A ∧ C)",
+      "answer": "B ∨ C",
       "acceptableAnswers": [
-        "(A NAND A) NAND (B NAND B)",
-        "NOT((A NAND A) NAND (B NAND B)) NAND NOT((A NAND A) NAND (B NAND B))",
-        "¬((A NAND A) NAND (B NAND B)) NAND ¬((A NAND A) NAND (B NAND B))"
+        "B ∨ C",
+        "B OR C",
+        "B + C",
+        "B+C",
+        "C ∨ B",
+        "C + B",
+        "C OR B"
       ],
-      "hint": "¬A = A NAND A. Then X ∧ Y = ¬(X NAND Y) = (X NAND Y) NAND (X NAND Y). But more directly, De Morgan's gives ¬A∧¬B = ¬(A∨B). Think step by step.",
-      "lawUsed": "NAND Universal Gate Property",
-      "explanation": "¬A = A↑A. ¬B = B↑B. ¬A∧¬B: Let P=A↑A, Q=B↑B. P∧Q = ¬(P↑Q) — but we need this as NAND. Actually (A↑A)↑(B↑B) = ¬(¬A∧¬B) = A∨B. So we need ¬(A∨B). Hmm, the direct NAND implementation of ¬A∧¬B = ((A↑A)↑(B↑B))↑((A↑A)↑(B↑B))."
+      "hint": "Expand the first term using the Distributive Law. Then regroup by B and C and factor.",
+      "lawUsed": "Distributive + Complement + Identity Laws",
+      "explanation": "Expand: (A∧B) ∨ (A∧C) ∨ (¬A∧B) ∨ (¬A∧C) [Distributive]. Regroup: B∧(A∨¬A) ∨ C∧(A∨¬A) [Distributive] = B∧1 ∨ C∧1 [Complement] = B∨C [Identity]."
     },
     {
       "id": 96,
       "category": "cie_exam",
       "difficulty": 2,
       "type": "simplify",
-      "title": "CIE Style – Product of Sums",
-      "question": "Convert to Sum of Products form: (A ∨ B) ∧ (A ∨ ¬B)",
+      "title": "CIE Style – OR over AND Simplification",
+      "question": "Simplify, naming the law at each step: (A ∨ B) ∧ (A ∨ ¬B)",
       "expression": "(A ∨ B) ∧ (A ∨ ¬B)",
       "answer": "A",
       "acceptableAnswers": [
         "A"
       ],
-      "hint": "Factor out A using the Distributive Law (OR over AND), then use the Complement Law.",
-      "lawUsed": "Distributive + Complement Laws",
-      "explanation": "(A∨B) ∧ (A∨¬B) = A ∨ (B∧¬B) = A ∨ 0 = A."
+      "hint": "Use the Distributive Law — OR distributes over AND. Factor out A, then the remaining term simplifies using the Complement Law.",
+      "lawUsed": "Distributive + Complement + Identity Laws",
+      "explanation": "(A∨B) ∧ (A∨¬B) = A ∨ (B∧¬B) [Distributive] = A ∨ 0 [Complement] = A [Identity]."
     },
     {
       "id": 97,
