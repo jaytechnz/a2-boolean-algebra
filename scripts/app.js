@@ -2361,31 +2361,35 @@ const KMap = {
           <div class="kmap-step-title">Write the Sum of Products (SOP) from the truth table</div>
           ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
         </div>
-        ${ttHTML}
-        <div class="kmap-sop-hint">
-          <strong>How to write SOP:</strong> For each row where Q=1, write a term with all 4 variables
-          (use <code>'</code> for NOT, e.g. <code>${this._sampleMintermCIE(ex.minterms[0])}</code>).
-          Join all terms with <code>+</code>.
+        <div class="kmap-step1-layout">
+          <div class="kmap-step1-table">${ttHTML}</div>
+          <div class="kmap-step1-input">
+            <div class="kmap-sop-hint">
+              <strong>How to write SOP:</strong> For each row where Q=1, write a term with all 4 variables
+              (use <code>'</code> for NOT, e.g. <code>${this._sampleMintermCIE(ex.minterms[0])}</code>).
+              Join all terms with <code>+</code>.
+            </div>
+            <div class="kmap-answer-row">
+              <input type="text" class="kmap-answer-input ${done ? 'correct' : ''}" id="kmap-sop-input"
+                placeholder="e.g. A'B'C'D + A'B'CD + ..."
+                ${done ? `value="${this._state.step1Answer}" disabled` : ''}
+                oninput="KMap._updatePreview('kmap-sop-preview','kmap-sop-input')"
+                onkeydown="if(event.key==='Enter')KMap.checkStep1()">
+              <button class="btn btn-primary" onclick="KMap.checkStep1()" ${done ? 'disabled' : ''}>Check SOP</button>
+            </div>
+            ${done
+              ? `<div class="live-preview live-preview-inline visible" style="margin-bottom:8px;">
+                  <div class="live-preview-label">CIE Notation Preview</div>
+                  <div class="live-preview-content">${renderTypedInput(this._state.step1Answer)}</div>
+                 </div>`
+              : `<div class="live-preview live-preview-inline" id="kmap-sop-preview" style="margin-bottom:8px;">
+                  <div class="live-preview-label">CIE Notation Preview</div>
+                  <div class="live-preview-content" id="kmap-sop-preview-content"></div>
+                 </div>`
+            }
+            <div id="kmap-step1-feedback"></div>
+          </div>
         </div>
-        <div class="kmap-answer-row">
-          <input type="text" class="kmap-answer-input ${done ? 'correct' : ''}" id="kmap-sop-input"
-            placeholder="e.g. A'B'C'D + A'B'CD + ..."
-            ${done ? `value="${this._state.step1Answer}" disabled` : ''}
-            oninput="KMap._updatePreview('kmap-sop-preview','kmap-sop-input')"
-            onkeydown="if(event.key==='Enter')KMap.checkStep1()">
-          <button class="btn btn-primary" onclick="KMap.checkStep1()" ${done ? 'disabled' : ''}>Check SOP</button>
-        </div>
-        ${done
-          ? `<div class="live-preview live-preview-inline visible" style="margin-bottom:8px;">
-              <div class="live-preview-label">CIE Notation Preview</div>
-              <div class="live-preview-content">${renderTypedInput(this._state.step1Answer)}</div>
-             </div>`
-          : `<div class="live-preview live-preview-inline" id="kmap-sop-preview" style="margin-bottom:8px;">
-              <div class="live-preview-label">CIE Notation Preview</div>
-              <div class="live-preview-content" id="kmap-sop-preview-content"></div>
-             </div>`
-        }
-        <div id="kmap-step1-feedback"></div>
       </div>`;
   },
 
