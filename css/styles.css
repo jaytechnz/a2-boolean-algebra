@@ -2045,6 +2045,7 @@ p { color: var(--text-secondary); }
   .stat-grid { grid-template-columns: 1fr; }
   .exercise-nav { flex-direction: column; gap: 12px; }
   .kmap-step1-layout { flex-direction: column; }
+  .kmap-step2-layout { flex-direction: column; }
 }
 
 /* ── Mobile Nav Toggle ── */
@@ -2136,6 +2137,27 @@ p { color: var(--text-secondary); }
 }
 .kmap-step-badge.locked-badge  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
 .kmap-step-badge.correct-badge { background: var(--success-bg); color: #166534; }
+
+/* Step 2 side-by-side layout */
+.kmap-step2-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+.kmap-step2-sop {
+  flex: 1;
+  min-width: 0;
+}
+.kmap-step2-sop-answer {
+  font-size: 0.95rem;
+  font-family: var(--font-mono);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  line-height: 1.8;
+  word-break: break-word;
+}
 
 /* Step 1 side-by-side layout */
 .kmap-step1-layout {
