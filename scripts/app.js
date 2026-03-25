@@ -530,7 +530,9 @@ const App = {
         } catch (createErr) {
           creatingAccount = false;
           spinner.style.display = 'none';
-          loginError.textContent = createErr.message;
+          loginError.textContent = createErr.code === 'auth/email-already-in-use'
+            ? 'Incorrect password. Please try again.'
+            : createErr.message;
           loginError.classList.add('show');
         }
       } else if (signInErr.code === 'auth/wrong-password') {
