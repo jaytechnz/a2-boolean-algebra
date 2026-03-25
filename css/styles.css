@@ -1734,6 +1734,7 @@ p { color: var(--text-secondary); }
 
 /* Heatmap */
 .heatmap-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; max-width: 50%; }
+.heatmap-grid-kmap { max-width: 25%; }
 .heatmap-cell { aspect-ratio: 1; border-radius: 2px; cursor: pointer; transition: var(--transition-fast); }
 .heatmap-cell:hover { transform: scale(1.2); z-index: 2; }
 .heatmap-cell.not-attempted { background: var(--bg); border: 1px solid var(--border); }
@@ -1894,6 +1895,7 @@ p { color: var(--text-secondary); }
   .class-overview-grid { grid-template-columns: repeat(2, 1fr); }
   .student-detail-stats { grid-template-columns: repeat(3, 1fr); }
   .heatmap-grid { gap: 2px; max-width: 80%; }
+  .heatmap-grid-kmap { max-width: 40%; }
 }
 
 /* ── Tooltip ── */
@@ -2036,6 +2038,7 @@ p { color: var(--text-secondary); }
 
   .teacher-grid { grid-template-columns: 1fr; }
   .heatmap-grid { grid-template-columns: repeat(10, 1fr); gap: 2px; max-width: 100%; }
+  .heatmap-grid-kmap { max-width: 100%; }
 }
 
 @media (max-width: 480px) {
