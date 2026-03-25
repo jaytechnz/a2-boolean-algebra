@@ -10,6 +10,7 @@
 
 // ── Data Store ──
 let EXERCISES = [];
+let KMAP_EXERCISES = [];
 let currentUser = null;
 let currentRole = 'student';
 let currentExerciseIndex = 0;
@@ -366,6 +367,12 @@ async function loadExercises() {
   } catch (e) {
     console.error('Failed to load exercises:', e);
     showToast('Could not load exercises. Please refresh.', 'error');
+  }
+  try {
+    const resp = await fetch('scripts/kmap-exercises.json');
+    KMAP_EXERCISES = (await resp.json()).exercises;
+  } catch (e) {
+    console.error('Failed to load K-Map exercises:', e);
   }
 }
 
@@ -1560,13 +1567,81 @@ const Teacher = {
         <div class="detail-section"><h4>Topic Breakdown</h4>${catBreakdown}</div>
         <div class="detail-section"><h4>Law-by-Law Accuracy</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">H = hint used. Shows which specific laws are causing difficulty.</p>${lawBreakdown || '<p style="font-size:0.85rem;color:var(--text-muted);">No exercises attempted yet.</p>'}</div>
         <div class="detail-section"><h4>Difficulty Breakdown</h4><p class="diff-breakdown">${diffBreakdown}</p></div>
-        <div class="detail-section" style="margin-bottom:0;"><h4>Mastery Breakdown</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Per topic: how many exercises were correct independently, correct only with a hint, incorrect, or not yet attempted.</p><div style="width:100%;overflow:hidden;"><canvas id="mastery-chart"></canvas></div></div>
+        <div class="detail-section"><h4>Mastery Breakdown</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Per topic: how many exercises were correct independently, correct only with a hint, incorrect, or not yet attempted.</p><div style="width:100%;overflow:hidden;"><canvas id="mastery-chart"></canvas></div></div>
+        <div class="detail-section" style="margin-bottom:0;"><h4>K-Map Progress</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Completion status for each of the 10 Karnaugh Map exercises.</p><div style="width:100%;overflow:hidden;"><canvas id="kmap-progress-chart"></canvas></div></div>
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="Teacher.resetStudentProgress('${uid}')">🔄 Reset Progress</button>
           <button class="btn btn-secondary btn-sm" onclick="Teacher.removeStudent('${uid}')">🗑 Remove Student</button>
         </div>
       </div>`;
     this.drawMasteryChart(uid);
+    this.drawKMapProgress(uid);
+  },
+
+  drawKMapProgress(uid) {
+    const canvas = document.getElementById('kmap-progress-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const progress = getProgress(uid);
+    const exercises = progress?.exercises || {};
+
+    const rows = KMAP_EXERCISES.map(ex => {
+      const key = `kmap_${ex.id}`;
+      const p = exercises[key];
+      const status = p ? p.status : 'not-attempted';
+      const hintUsed = p ? p.hintUsed : false;
+      return { label: ex.title, status, hintUsed };
+    });
+
+    const dpr = window.devicePixelRatio || 1;
+    const w   = canvas.parentElement.clientWidth || 480;
+    const labelW = 180, mR = 10, mT = 6, mB = 8;
+    const rowH = 28, barH = 14;
+    const h = mT + rows.length * rowH + mB;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+
+    const barW = w - labelW - mR;
+
+    rows.forEach((row, i) => {
+      const y = mT + i * rowH + (rowH - barH) / 2;
+
+      ctx.font = '11px DM Sans, sans-serif';
+      ctx.fillStyle = '#5A5F7A';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const lbl = row.label.length > 22 ? row.label.slice(0, 21) + '…' : row.label;
+      ctx.fillText(lbl, labelW - 8, y + barH / 2);
+
+      // Background track
+      ctx.fillStyle = '#ECEEF6';
+      ctx.beginPath();
+      ctx.roundRect(labelW, y, barW, barH, 3);
+      ctx.fill();
+
+      let color, text;
+      if (row.status === 'correct' && !row.hintUsed) { color = '#22C55E'; text = 'Correct'; }
+      else if (row.status === 'correct' && row.hintUsed) { color = '#F59E0B'; text = 'Correct (hint)'; }
+      else if (row.status === 'incorrect') { color = '#EF4444'; text = 'Incorrect'; }
+      else { color = null; text = 'Not attempted'; }
+
+      if (color) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(labelW, y, barW, barH, 3);
+        ctx.clip();
+        ctx.fillStyle = color;
+        ctx.fillRect(labelW, y, barW, barH);
+        ctx.font = 'bold 9px DM Sans, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, labelW + barW / 2, y + barH / 2);
+        ctx.restore();
+      }
+    });
   },
 
   drawMasteryChart(uid) {
@@ -1702,6 +1777,7 @@ const Teacher = {
     const students = this._getAllStudents();
     const total = students.length;
     document.getElementById('heatmap-student-name').textContent = 'Class Aggregate';
+    document.getElementById('heatmap-mode-label').textContent = 'Colour intensity shows how many students answered correctly.';
     grid.innerHTML = '';
     for (let i = 1; i <= 100; i++) {
       const ex = EXERCISES.find(e => e.id === i);
@@ -1711,6 +1787,27 @@ const Teacher = {
       cell.className = 'heatmap-cell';
       if (total === 0 || ac === 0) { cell.classList.add('not-attempted'); cell.title = ex ? `#${i}: ${ex.title} — not attempted` : `#${i}`; }
       else { const p = cc / total; cell.style.background = `rgb(${Math.round(239 - p * 205)},${Math.round(68 + p * 129)},${Math.round(68 + p * 26)})`; cell.title = ex ? `#${i}: ${ex.title} — ${cc}/${total} correct (${Math.round(p*100)}%)` : `#${i}`; }
+      cell.addEventListener('mouseenter', () => { const t = document.getElementById('tooltip'); t.textContent = cell.title; t.classList.add('show'); const rect = cell.getBoundingClientRect(); t.style.left = rect.left + rect.width/2 - t.offsetWidth/2 + 'px'; t.style.top = rect.top - t.offsetHeight - 8 + 'px'; });
+      cell.addEventListener('mouseleave', () => { document.getElementById('tooltip').classList.remove('show'); });
+      grid.appendChild(cell);
+    }
+    this._renderKMapHeatmapAggregate(students, total);
+  },
+
+  _renderKMapHeatmapAggregate(students, total) {
+    const grid = document.getElementById('kmap-heatmap-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+      const ex = KMAP_EXERCISES.find(e => e.id === i);
+      const key = `kmap_${i}`;
+      let cc = 0, ac = 0;
+      students.forEach(st => { if (st.exercises[key]) { ac++; if (st.exercises[key].status === 'correct') cc++; } });
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      const label = ex ? `K${i}: ${ex.title}` : `K${i}`;
+      if (total === 0 || ac === 0) { cell.classList.add('not-attempted'); cell.title = `${label} — not attempted`; }
+      else { const p = cc / total; cell.style.background = `rgb(${Math.round(239 - p * 205)},${Math.round(68 + p * 129)},${Math.round(68 + p * 26)})`; cell.title = `${label} — ${cc}/${total} correct (${Math.round(p*100)}%)`; }
       cell.addEventListener('mouseenter', () => { const t = document.getElementById('tooltip'); t.textContent = cell.title; t.classList.add('show'); const rect = cell.getBoundingClientRect(); t.style.left = rect.left + rect.width/2 - t.offsetWidth/2 + 'px'; t.style.top = rect.top - t.offsetHeight - 8 + 'px'; });
       cell.addEventListener('mouseleave', () => { document.getElementById('tooltip').classList.remove('show'); });
       grid.appendChild(cell);
@@ -1730,6 +1827,27 @@ const Teacher = {
       const cell = document.createElement('div');
       cell.className = `heatmap-cell ${cls}`;
       cell.title = ex ? `#${i}: ${ex.title} (${cls.replace('_',' ')})` : `#${i}`;
+      cell.addEventListener('mouseenter', () => { const t = document.getElementById('tooltip'); t.textContent = cell.title; t.classList.add('show'); const rect = cell.getBoundingClientRect(); t.style.left = rect.left + rect.width/2 - t.offsetWidth/2 + 'px'; t.style.top = rect.top - t.offsetHeight - 8 + 'px'; });
+      cell.addEventListener('mouseleave', () => { document.getElementById('tooltip').classList.remove('show'); });
+      grid.appendChild(cell);
+    }
+    this._renderKMapHeatmapStudent(uid, exercises);
+  },
+
+  _renderKMapHeatmapStudent(_uid, exercises) {
+    const grid = document.getElementById('kmap-heatmap-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+      const ex = KMAP_EXERCISES.find(e => e.id === i);
+      const key = `kmap_${i}`;
+      const exP = exercises[key];
+      let cls = 'not-attempted';
+      if (exP) { cls = exP.status === 'correct' ? 'correct' : exP.hintUsed ? 'hint-used' : 'incorrect'; }
+      const cell = document.createElement('div');
+      cell.className = `heatmap-cell ${cls}`;
+      const label = ex ? `K${i}: ${ex.title}` : `K${i}`;
+      cell.title = `${label} (${cls.replace('-',' ')})`;
       cell.addEventListener('mouseenter', () => { const t = document.getElementById('tooltip'); t.textContent = cell.title; t.classList.add('show'); const rect = cell.getBoundingClientRect(); t.style.left = rect.left + rect.width/2 - t.offsetWidth/2 + 'px'; t.style.top = rect.top - t.offsetHeight - 8 + 'px'; });
       cell.addEventListener('mouseleave', () => { document.getElementById('tooltip').classList.remove('show'); });
       grid.appendChild(cell);
@@ -2211,7 +2329,7 @@ const KMap = {
         <button class="btn btn-primary btn-sm" onclick="KMap.next()" ${this.currentIndex >= this.exercises.length - 1 ? 'disabled' : ''}>Next →</button>
       </div>
       <div class="exercise-card" style="margin-bottom:16px;">
-        <div class="exercise-title">${ex.title}</div>
+        <div class="exercise-title">${renderCIE(ex.title)}</div>
       </div>
       ${this._renderStep1(ex, s.step1)}
       ${this._renderStep2(ex, s.step2)}
