@@ -579,6 +579,7 @@ const App = {
     if (screen === 'dashboard') Dashboard.render();
     if (screen === 'learn') Learn.render();
     if (screen === 'practice') Practice.init();
+    if (screen === 'kmap') KMap.init();
     if (screen === 'teacher') Teacher.render().catch(e => console.error('Teacher render error:', e));
 
     document.getElementById('nav-links').classList.remove('mobile-open');
@@ -2039,6 +2040,618 @@ const Teacher = {
     }
   },
 
+};
+
+
+// ══════════════════════════════════════════
+//  BOOLEAN EXPRESSION EVALUATOR
+//  Used by KMap to validate student SOP entries.
+// ══════════════════════════════════════════
+
+function _normExprForEval(raw) {
+  let s = raw.trim();
+  s = s.replace(/[\u2018\u2019\u02BC]/g, "'");   // smart quotes
+  s = s.replace(/\bAND\b/gi, '∧').replace(/\bOR\b/gi, '∨');
+  s = s.replace(/\bNOT\b\s*/gi, '¬');
+  s = s.replace(/·/g, '∧').replace(/\./g, '∧');
+  s = s.replace(/\+/g, '∨');
+  s = s.replace(/!/g, '¬');
+  s = _primesToNeg(s);
+  s = s.replace(/\s+/g, '');
+  return s;
+}
+
+function _evalBoolAt(rawExpr, vals) {
+  const s = _normExprForEval(rawExpr);
+  let pos = 0;
+
+  function parseOr() {
+    let r = parseAnd();
+    while (pos < s.length && s[pos] === '∨') { pos += '∨'.length; r = r | parseAnd(); }
+    return r;
+  }
+  function parseAnd() {
+    let r = parseNot();
+    while (pos < s.length && s[pos] !== '∨' && s[pos] !== ')') {
+      if (s.slice(pos, pos + '∧'.length) === '∧') { pos += '∧'.length; }
+      // implicit AND: next char starts an atom
+      else if (s[pos] === '(' || s[pos] === '¬' || /[A-D01]/i.test(s[pos])) { /* implicit */ }
+      else break;
+      r = r & parseNot();
+    }
+    return r;
+  }
+  function parseNot() {
+    if (s[pos] === '¬') { pos++; return 1 - parseNot(); }
+    return parseAtom();
+  }
+  function parseAtom() {
+    if (s[pos] === '(') {
+      pos++;
+      const r = parseOr();
+      if (pos < s.length && s[pos] === ')') pos++;
+      return r;
+    }
+    if (/[A-D]/i.test(s[pos] || '')) { return vals[s[pos++].toUpperCase()]; }
+    if (s[pos] === '0') { pos++; return 0; }
+    if (s[pos] === '1') { pos++; return 1; }
+    pos++;
+    return 0;
+  }
+
+  try { return parseOr(); }
+  catch { return null; }
+}
+
+/** Returns true if exprStr is logically equivalent to the given minterms list (0–15). */
+function _matchesMinterms(exprStr, minterms) {
+  const set = new Set(minterms);
+  for (let m = 0; m < 16; m++) {
+    const result = _evalBoolAt(exprStr, {
+      A: (m >> 3) & 1, B: (m >> 2) & 1, C: (m >> 1) & 1, D: m & 1
+    });
+    if (result === null) return false;
+    if (result !== (set.has(m) ? 1 : 0)) return false;
+  }
+  return true;
+}
+
+/** Returns the minterm number for K-Map cell (row r, col c), Gray-code ordered. */
+function _kmapCellMinterm(r, c) {
+  const rowAB = [0, 1, 3, 2]; // AB Gray: 00,01,11,10
+  const colCD = [0, 1, 3, 2]; // CD Gray: 00,01,11,10
+  const ab = rowAB[r], cd = colCD[c];
+  return ((ab >> 1) & 1) * 8 + (ab & 1) * 4 + ((cd >> 1) & 1) * 2 + (cd & 1);
+}
+
+/** Normalise a simplified SOP answer for string matching (mirrors Practice.checkAnswer normalise). */
+function _normSOP(s) {
+  return s.toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/·/g, '∧').replace(/\./g, '∧')
+    .replace(/\+/g, '∨')
+    .replace(/!/g, '¬').replace(/not/gi, '¬')
+    .replace(/and/gi, '∧').replace(/or/gi, '∨')
+    .replace(/'/g, '¬');
+}
+
+
+// ══════════════════════════════════════════
+//  KARNAUGH MAPS MODULE
+// ══════════════════════════════════════════
+
+const KMap = {
+  exercises: [],
+  currentIndex: 0,
+
+  // Per-exercise UI state (reset on navigation)
+  _state: null,
+
+  // Canvas drawing state
+  _drawing: false,
+  _currentColor: 0,
+  _loopColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12'],
+  _hasDrawing: false,
+
+  async init() {
+    if (this.exercises.length === 0) {
+      try {
+        const resp = await fetch('scripts/kmap-exercises.json');
+        this.exercises = (await resp.json()).exercises;
+      } catch {
+        document.getElementById('kmap-exercise-area').innerHTML =
+          '<div class="empty-state"><p>Could not load K-Map exercises.</p></div>';
+        return;
+      }
+    }
+    // Restore index from previous visit if valid
+    if (this.currentIndex >= this.exercises.length) this.currentIndex = 0;
+    this._resetState();
+    this._render();
+  },
+
+  _resetState() {
+    this._state = { step1: 'active', step2: 'locked', step3: 'locked', step4: 'locked' };
+    this._cellValues = Array.from({ length: 4 }, () => Array(4).fill(0));
+    this._hasDrawing = false;
+    this._currentColor = 0;
+  },
+
+  _ex() { return this.exercises[this.currentIndex]; },
+
+  prev() {
+    if (this.currentIndex > 0) {
+      this.currentIndex--;
+      this._resetState();
+      this._render();
+    }
+  },
+
+  next() {
+    if (this.currentIndex < this.exercises.length - 1) {
+      this.currentIndex++;
+      this._resetState();
+      this._render();
+    }
+  },
+
+  _render() {
+    const ex = this._ex();
+    const area = document.getElementById('kmap-exercise-area');
+    const diffLabel = ex.difficulty === 1 ? 'Easy' : ex.difficulty === 2 ? 'Medium' : 'Hard';
+    const s = this._state;
+
+    area.innerHTML = `
+      <div class="kmap-nav">
+        <button class="btn btn-secondary btn-sm" onclick="KMap.prev()" ${this.currentIndex === 0 ? 'disabled' : ''}>← Previous</button>
+        <span class="kmap-counter">${this.currentIndex + 1} of ${this.exercises.length} &nbsp;·&nbsp;
+          <span class="exercise-difficulty ${diffLabel.toLowerCase()}">${diffLabel}</span></span>
+        <button class="btn btn-primary btn-sm" onclick="KMap.next()" ${this.currentIndex >= this.exercises.length - 1 ? 'disabled' : ''}>Next →</button>
+      </div>
+      <div class="exercise-card" style="margin-bottom:16px;">
+        <div class="exercise-title">${ex.title}</div>
+      </div>
+      ${this._renderStep1(ex, s.step1)}
+      ${this._renderStep2(ex, s.step2)}
+      ${this._renderStep3(ex, s.step3)}
+      ${this._renderStep4(ex, s.step4)}
+      ${s.step4 === 'correct' ? this._renderComplete(ex) : ''}
+    `;
+
+    this._attachStep2Events();
+    this._attachCanvasEvents();
+    this._attachInputEvents();
+  },
+
+  // ── Step 1: Truth table → write SOP ──
+  _renderStep1(ex, status) {
+    const locked = status === 'locked';
+    const done   = status === 'correct';
+    const ttHTML = this._truthTableHTML(ex.minterms);
+
+    return `
+      <div class="kmap-step ${locked ? 'locked' : ''} ${done ? 'step-complete' : ''}">
+        <div class="kmap-step-header">
+          <div class="kmap-step-num">1</div>
+          <div class="kmap-step-title">Write the Sum of Products (SOP) from the truth table</div>
+          ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
+        </div>
+        ${ttHTML}
+        <div class="kmap-sop-hint">
+          <strong>How to write SOP:</strong> For each row where Q=1, write a term with all 4 variables
+          (use <code>'</code> for NOT, e.g. <code>${this._sampleMintermCIE(ex.minterms[0])}</code>).
+          Join all terms with <code>+</code>.
+        </div>
+        <div class="kmap-answer-row">
+          <input type="text" class="kmap-answer-input" id="kmap-sop-input"
+            placeholder="e.g. A'B'C'D + A'B'CD + ..."
+            ${done ? `value="${this._sopPlaceholder(ex)}" disabled` : ''}
+            oninput="KMap._updatePreview('kmap-sop-preview','kmap-sop-input')"
+            onkeydown="if(event.key==='Enter')KMap.checkStep1()">
+          <button class="btn btn-primary" onclick="KMap.checkStep1()" ${done ? 'disabled' : ''}>Check SOP</button>
+        </div>
+        <div class="live-preview live-preview-inline" id="kmap-sop-preview" style="margin-bottom:8px;">
+          <div class="live-preview-label">CIE Notation Preview</div>
+          <div class="live-preview-content" id="kmap-sop-preview-content"></div>
+        </div>
+        <div id="kmap-step1-feedback"></div>
+      </div>`;
+  },
+
+  // ── Step 2: Fill K-Map cells ──
+  _renderStep2(ex, status) {
+    const locked = status === 'locked';
+    const done   = status === 'correct';
+    const gridHTML = this._kmapGridHTML(ex.minterms, done ? 'values' : 'fill');
+
+    return `
+      <div class="kmap-step ${locked ? 'locked' : ''} ${done ? 'step-complete' : ''}">
+        <div class="kmap-step-header">
+          <div class="kmap-step-num">2</div>
+          <div class="kmap-step-title">Fill in the K-Map — click each cell to enter 0 or 1</div>
+          ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
+        </div>
+        <div class="kmap-grid-outer">
+          ${gridHTML}
+        </div>
+        <button class="btn btn-primary" onclick="KMap.checkStep2()" ${done || locked ? 'disabled' : ''}>Check K-Map</button>
+        <div id="kmap-step2-feedback"></div>
+      </div>`;
+  },
+
+  // ── Step 3: Draw loops on canvas ──
+  _renderStep3(ex, status) {
+    const locked = status === 'locked';
+    const done   = status === 'done';
+    const gridHTML = this._kmapGridHTML(ex.minterms, 'values');
+
+    const swatches = this._loopColors.map((c, i) =>
+      `<div class="kmap-loop-swatch ${i === this._currentColor ? 'active' : ''}"
+        style="background:${c}" onclick="KMap._selectColor(${i})" title="Loop colour ${i+1}"></div>`
+    ).join('');
+
+    return `
+      <div class="kmap-step ${locked ? 'locked' : ''} ${done ? 'step-complete' : ''}">
+        <div class="kmap-step-header">
+          <div class="kmap-step-num">3</div>
+          <div class="kmap-step-title">Draw loops to group the 1s — use mouse or stylus</div>
+          ${done ? '<span class="kmap-step-badge correct-badge">✓ Done</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
+        </div>
+        <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:10px;">
+          Draw ellipses or rectangles over groups of 1s. Groups must be powers of 2 (1,2,4,8). The K-Map wraps — top/bottom and left/right edges are adjacent.
+          ${done ? '<br><strong style="color:var(--success);">Group hint: ' + ex.groupDesc + '</strong>' : ''}
+        </p>
+        <div class="kmap-loop-colors">
+          ${swatches}
+          <button class="btn btn-secondary btn-sm" onclick="KMap._clearCanvas()" style="margin-left:4px;">Clear</button>
+        </div>
+        <div class="kmap-grid-outer">
+          <div class="kmap-draw-wrap" id="kmap-draw-wrap">
+            ${gridHTML}
+            <canvas id="kmap-draw-canvas" class="kmap-draw-canvas"></canvas>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="KMap.confirmStep3()" ${done || locked ? 'disabled' : ''} style="margin-top:10px;">
+          I've drawn my groups →
+        </button>
+        <div id="kmap-step3-feedback"></div>
+      </div>`;
+  },
+
+  // ── Step 4: Write simplified SOP ──
+  _renderStep4(ex, status) {
+    const locked = status === 'locked';
+    const done   = status === 'correct';
+
+    return `
+      <div class="kmap-step ${locked ? 'locked' : ''} ${done ? 'step-complete' : ''}">
+        <div class="kmap-step-header">
+          <div class="kmap-step-num">4</div>
+          <div class="kmap-step-title">Write the simplified Sum of Products</div>
+          ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
+        </div>
+        <div class="kmap-answer-row">
+          <input type="text" class="kmap-answer-input" id="kmap-simp-input"
+            placeholder="Simplified expression (e.g. A'B + C)"
+            ${done ? `value="${toCIEText(ex.simplifiedSOP)}" disabled` : ''}
+            oninput="KMap._updatePreview('kmap-simp-preview','kmap-simp-input')"
+            onkeydown="if(event.key==='Enter')KMap.checkStep4()">
+          <button class="btn btn-primary" onclick="KMap.checkStep4()" ${done || locked ? 'disabled' : ''}>Check Answer</button>
+        </div>
+        <div class="live-preview live-preview-inline" id="kmap-simp-preview" style="margin-bottom:8px;">
+          <div class="live-preview-label">CIE Notation Preview</div>
+          <div class="live-preview-content" id="kmap-simp-preview-content"></div>
+        </div>
+        <div id="kmap-step4-feedback"></div>
+      </div>`;
+  },
+
+  _renderComplete(ex) {
+    return `
+      <div class="kmap-complete-banner">
+        <h3>Exercise complete!</h3>
+        <p>${renderCIE(ex.explanation)}</p>
+      </div>`;
+  },
+
+  // ── Step checkers ──
+
+  checkStep1() {
+    const input = document.getElementById('kmap-sop-input');
+    if (!input || !input.value.trim()) return;
+    const ex = this._ex();
+    const fb = document.getElementById('kmap-step1-feedback');
+    const val = input.value.trim();
+
+    if (_matchesMinterms(val, ex.minterms)) {
+      input.classList.add('correct');
+      input.disabled = true;
+      this._state.step1 = 'correct';
+      this._state.step2 = 'active';
+      fb.innerHTML = '<div class="kmap-feedback correct">Correct! Your SOP matches the truth table. Now fill in the K-Map.</div>';
+      // Re-render step 2 as unlocked
+      this._refreshSteps();
+    } else {
+      input.classList.add('incorrect');
+      fb.innerHTML = '<div class="kmap-feedback incorrect">That SOP doesn\'t match the truth table — check which rows have Q=1 and write a term for each.</div>';
+    }
+  },
+
+  checkStep2() {
+    const ex = this._ex();
+    const mintermSet = new Set(ex.minterms);
+    let allCorrect = true;
+
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cell = document.querySelector(`.kmap-cell[data-r="${r}"][data-c="${c}"]`);
+        if (!cell) continue;
+        const mt = _kmapCellMinterm(r, c);
+        const expected = mintermSet.has(mt) ? 1 : 0;
+        const filled   = this._cellValues[r][c];
+        if (filled !== expected) {
+          allCorrect = false;
+          cell.classList.add('cell-wrong');
+          cell.classList.remove('cell-correct');
+        } else {
+          cell.classList.add('cell-correct');
+          cell.classList.remove('cell-wrong');
+        }
+      }
+    }
+
+    const fb = document.getElementById('kmap-step2-feedback');
+    if (allCorrect) {
+      this._state.step2 = 'correct';
+      this._state.step3 = 'active';
+      fb.innerHTML = '<div class="kmap-feedback correct">K-Map filled correctly! Now draw loops around the groups of 1s.</div>';
+      this._refreshSteps();
+    } else {
+      fb.innerHTML = '<div class="kmap-feedback incorrect">Some cells are wrong — red cells don\'t match the truth table. Check again.</div>';
+    }
+  },
+
+  confirmStep3() {
+    if (!this._hasDrawing) {
+      document.getElementById('kmap-step3-feedback').innerHTML =
+        '<div class="kmap-feedback info">Draw at least one loop on the K-Map before continuing.</div>';
+      return;
+    }
+    this._state.step3 = 'done';
+    this._state.step4 = 'active';
+    document.getElementById('kmap-step3-feedback').innerHTML =
+      '<div class="kmap-feedback correct">Loops recorded. Now write the simplified SOP from your groupings.</div>';
+    this._refreshSteps();
+  },
+
+  checkStep4() {
+    const input = document.getElementById('kmap-simp-input');
+    if (!input || !input.value.trim()) return;
+    const ex = this._ex();
+    const fb = document.getElementById('kmap-step4-feedback');
+    const val = input.value.trim();
+    const normVal = _normSOP(val);
+
+    const isCorrect = ex.simplifiedAcceptable.some(a => _normSOP(a) === normVal)
+      || _matchesMinterms(val, ex.minterms);
+
+    if (isCorrect) {
+      input.classList.add('correct');
+      input.disabled = true;
+      this._state.step4 = 'correct';
+      fb.innerHTML = '<div class="kmap-feedback correct">Correct! All four steps complete.</div>';
+      saveProgress('kmap_' + ex.id, { status: 'correct', hintUsed: false, working: '' });
+      this._refreshSteps();
+    } else {
+      input.classList.add('incorrect');
+      fb.innerHTML = '<div class="kmap-feedback incorrect">Not quite — check your loop groupings and derive each term from the variables that stay constant within the loop.</div>';
+    }
+  },
+
+  // ── Helpers ──
+
+  _refreshSteps() {
+    // Re-render only step sections without destroying the whole area.
+    // For simplicity, just re-render everything (inputs are read before this call).
+    const ex = this._ex();
+    const s = this._state;
+    const area = document.getElementById('kmap-exercise-area');
+    // Replace step divs only
+    const steps = area.querySelectorAll('.kmap-step');
+    const newHTML = [
+      this._renderStep1(ex, s.step1),
+      this._renderStep2(ex, s.step2),
+      this._renderStep3(ex, s.step3),
+      this._renderStep4(ex, s.step4),
+    ];
+    newHTML.forEach((html, i) => {
+      if (steps[i]) steps[i].outerHTML = html; // replaced in DOM
+    });
+
+    // Re-render complete banner if needed
+    const existing = area.querySelector('.kmap-complete-banner');
+    if (s.step4 === 'correct' && !existing) {
+      area.insertAdjacentHTML('beforeend', this._renderComplete(ex));
+    }
+
+    // Re-attach events
+    this._attachStep2Events();
+    this._attachCanvasEvents();
+    this._attachInputEvents();
+  },
+
+  _attachStep2Events() {
+    document.querySelectorAll('.kmap-cell.fillable').forEach(cell => {
+      cell.onclick = () => {
+        const r = +cell.dataset.r, c = +cell.dataset.c;
+        this._cellValues[r][c] = 1 - this._cellValues[r][c];
+        const v = this._cellValues[r][c];
+        cell.classList.toggle('filled-one', v === 1);
+        cell.classList.toggle('filled-zero', v === 0);
+        cell.querySelector('.cell-val').textContent = v;
+      };
+    });
+  },
+
+  _attachCanvasEvents() {
+    const canvas = document.getElementById('kmap-draw-canvas');
+    const wrap   = document.getElementById('kmap-draw-wrap');
+    if (!canvas || !wrap) return;
+
+    // Size canvas to cover the cell area (4×56 × 4×52)
+    const cellW = 56, cellH = 52;
+    canvas.width  = 4 * cellW;
+    canvas.height = 4 * cellH;
+    canvas.style.width  = (4 * cellW) + 'px';
+    canvas.style.height = (4 * cellH) + 'px';
+
+    const ctx = canvas.getContext('2d');
+
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    };
+
+    const startDraw = (e) => {
+      e.preventDefault();
+      this._drawing = true;
+      const { x, y } = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.strokeStyle = this._loopColors[this._currentColor];
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    };
+    const moveDraw = (e) => {
+      if (!this._drawing) return;
+      e.preventDefault();
+      const { x, y } = getPos(e);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      this._hasDrawing = true;
+    };
+    const stopDraw = () => { this._drawing = false; };
+
+    canvas.addEventListener('mousedown',  startDraw);
+    canvas.addEventListener('mousemove',  moveDraw);
+    canvas.addEventListener('mouseup',    stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove',  moveDraw,  { passive: false });
+    canvas.addEventListener('touchend',   stopDraw);
+  },
+
+  _attachInputEvents() {
+    // Restore cursor to SOP input if step 1 is active
+    const sopInput = document.getElementById('kmap-sop-input');
+    if (sopInput && !sopInput.disabled) setTimeout(() => sopInput.focus(), 80);
+  },
+
+  _selectColor(i) {
+    this._currentColor = i;
+    document.querySelectorAll('.kmap-loop-swatch').forEach((s, idx) =>
+      s.classList.toggle('active', idx === i));
+  },
+
+  _clearCanvas() {
+    const canvas = document.getElementById('kmap-draw-canvas');
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    this._hasDrawing = false;
+  },
+
+  _updatePreview(wrapId, inputId) {
+    const input = document.getElementById(inputId);
+    const wrap  = document.getElementById(wrapId);
+    const content = document.getElementById(wrapId + '-content');
+    if (!input || !wrap || !content) return;
+    const val = input.value.trim();
+    if (val) {
+      content.innerHTML = renderTypedInput(val);
+      wrap.classList.add('visible');
+    } else {
+      content.innerHTML = '';
+      wrap.classList.remove('visible');
+    }
+  },
+
+  // ── HTML builders ──
+
+  _truthTableHTML(minterms) {
+    const mintSet = new Set(minterms);
+    let rows = '';
+    for (let m = 0; m < 16; m++) {
+      const A = (m >> 3) & 1, B = (m >> 2) & 1, C = (m >> 1) & 1, D = m & 1;
+      const Q = mintSet.has(m) ? 1 : 0;
+      rows += `<tr class="${Q ? 'minterm-row' : ''}">
+        <td>${A}</td><td>${B}</td><td>${C}</td><td>${D}</td>
+        <td class="${Q ? 'output-one' : 'output-zero'}">${Q}</td>
+      </tr>`;
+    }
+    return `<div style="overflow-x:auto;margin-bottom:12px;">
+      <table class="kmap-truth-table">
+        <thead><tr><th>A</th><th>B</th><th>C</th><th>D</th><th>Q</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  },
+
+  _kmapGridHTML(minterms, mode) {
+    // mode: 'fill' (student fills step 2) | 'values' (show correct values, read-only)
+    const mintSet = new Set(minterms);
+    const rowLabels = ['00', '01', '11', '10'];
+    const colLabels = ['00', '01', '11', '10'];
+
+    let cells = `
+      <div class="kmap-corner">AB \\ CD</div>
+      <div class="kmap-col-hdr">${colLabels[0]}</div>
+      <div class="kmap-col-hdr">${colLabels[1]}</div>
+      <div class="kmap-col-hdr">${colLabels[2]}</div>
+      <div class="kmap-col-hdr">${colLabels[3]}</div>`;
+
+    for (let r = 0; r < 4; r++) {
+      cells += `<div class="kmap-row-hdr">${rowLabels[r]}</div>`;
+      for (let c = 0; c < 4; c++) {
+        const mt = _kmapCellMinterm(r, c);
+        const val = mintSet.has(mt) ? 1 : 0;
+        if (mode === 'values') {
+          cells += `<div class="kmap-cell ${val ? 'cell-one' : 'cell-zero'}" data-r="${r}" data-c="${c}">
+            <span class="cell-mt">${mt}</span>
+            <span class="cell-val">${val}</span>
+          </div>`;
+        } else {
+          // fillable: default 0, student clicks to toggle
+          const sv = this._cellValues[r][c];
+          cells += `<div class="kmap-cell fillable ${sv ? 'filled-one' : 'filled-zero'}" data-r="${r}" data-c="${c}">
+            <span class="cell-mt">${mt}</span>
+            <span class="cell-val">${sv}</span>
+          </div>`;
+        }
+      }
+    }
+    return `<div class="kmap-grid">${cells}</div>`;
+  },
+
+  /** Returns a sample single-minterm term (the first minterm) as CIE text for the hint. */
+  _sampleMintermCIE(m) {
+    const A = (m >> 3) & 1, B = (m >> 2) & 1, C = (m >> 1) & 1, D = m & 1;
+    return [
+      A ? 'A' : "A'",
+      B ? 'B' : "B'",
+      C ? 'C' : "C'",
+      D ? 'D' : "D'"
+    ].join('');
+  },
+
+  _sampleMintermTerm(m) {
+    const A = (m >> 3) & 1, B = (m >> 2) & 1, C = (m >> 1) & 1, D = m & 1;
+    return [A ? 'A' : '¬A', B ? 'B' : '¬B', C ? 'C' : '¬C', D ? 'D' : '¬D'].join('∧');
+  },
+
+  _sopPlaceholder(ex) {
+    return ex.minterms.map(m => this._sampleMintermCIE(m)).join(' + ');
+  }
 };
 
 

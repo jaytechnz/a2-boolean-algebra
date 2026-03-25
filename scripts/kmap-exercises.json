@@ -1,0 +1,125 @@
+{
+  "exercises": [
+    {
+      "id": 1,
+      "title": "Single Group — D",
+      "difficulty": 1,
+      "minterms": [1, 3, 5, 7, 9, 11, 13, 15],
+      "simplifiedSOP": "D",
+      "simplifiedAcceptable": ["D"],
+      "hint": "Look at which column pattern repeats across every row. When a variable is 1 in every cell of a group, it must appear in the simplified term.",
+      "explanation": "Every row where D=1 is a minterm. The K-Map shows two full columns (CD=01 and CD=11, both D=1), forming a group of 8. Only D=1 is common to all 8 cells, so the simplified expression is just D.",
+      "groupDesc": "One group of 8: all cells where D=1 (columns CD=01 and CD=11)"
+    },
+    {
+      "id": 2,
+      "title": "Single Group — ¬A",
+      "difficulty": 1,
+      "minterms": [0, 1, 2, 3, 4, 5, 6, 7],
+      "simplifiedSOP": "¬A",
+      "simplifiedAcceptable": ["¬A", "NOT A", "A'", "!A"],
+      "hint": "Which rows of the K-Map are entirely 1? Check what value of A those rows share.",
+      "explanation": "All minterms from 0 to 7 have A=0. The K-Map shows the top two rows (AB=00 and AB=01) fully filled. These form a group of 8. Only A=0 is common to all cells, so the simplified expression is ¬A.",
+      "groupDesc": "One group of 8: rows AB=00 and AB=01 (all cells where A=0)"
+    },
+    {
+      "id": 3,
+      "title": "Single Group — ¬D",
+      "difficulty": 1,
+      "minterms": [0, 2, 4, 6, 8, 10, 12, 14],
+      "simplifiedSOP": "¬D",
+      "simplifiedAcceptable": ["¬D", "NOT D", "D'", "!D"],
+      "hint": "K-Maps wrap around — the leftmost column (CD=00) and rightmost column (CD=10) are adjacent. What do these columns have in common?",
+      "explanation": "All even minterms have D=0. The K-Map shows the leftmost column (CD=00) and rightmost column (CD=10) fully filled. These wrap to form a group of 8. Only D=0 is common to all cells, so the simplified expression is ¬D.",
+      "groupDesc": "One wrap-around group of 8: columns CD=00 and CD=10 (all cells where D=0)"
+    },
+    {
+      "id": 4,
+      "title": "Single Group — B",
+      "difficulty": 1,
+      "minterms": [4, 5, 6, 7, 12, 13, 14, 15],
+      "simplifiedSOP": "B",
+      "simplifiedAcceptable": ["B"],
+      "hint": "Identify the two rows that are entirely filled with 1s. What value of B do those rows share?",
+      "explanation": "All minterms with B=1 (rows AB=01 and AB=11) are included. These form a group of 8 in the middle two rows. Only B=1 is common to all cells, so the simplified expression is B.",
+      "groupDesc": "One group of 8: rows AB=01 and AB=11 (all cells where B=1)"
+    },
+    {
+      "id": 5,
+      "title": "Single Group — C∧D",
+      "difficulty": 1,
+      "minterms": [3, 7, 11, 15],
+      "simplifiedSOP": "C∧D",
+      "simplifiedAcceptable": ["C∧D", "C AND D", "CD", "C·D", "C.D", "D∧C", "D AND C", "DC", "D·C", "D.C"],
+      "hint": "All four minterms lie in the same column. Identify that column's CD label — both variables in the label must be 1.",
+      "explanation": "Minterms 3, 7, 11 and 15 all have C=1 and D=1, sitting in column CD=11. This is one group of 4 spanning the whole column. Both C=1 and D=1 are constant, so the simplified expression is C∧D.",
+      "groupDesc": "One group of 4: column CD=11 (all cells where C=1 and D=1)"
+    },
+    {
+      "id": 6,
+      "title": "Single Group — ¬A∧¬C",
+      "difficulty": 2,
+      "minterms": [0, 1, 4, 5],
+      "simplifiedSOP": "¬A∧¬C",
+      "simplifiedAcceptable": [
+        "¬A∧¬C", "¬C∧¬A", "A'∧C'", "A'C'", "NOT A AND NOT C",
+        "NOT C AND NOT A", "¬A ∧ ¬C", "¬C ∧ ¬A", "A' AND C'", "C' AND A'"
+      ],
+      "hint": "The group occupies the top-left 2×2 block of the K-Map. Look at what two variables are 0 (complement) in every cell of that block.",
+      "explanation": "Minterms 0, 1, 4 and 5 occupy a 2×2 block (rows AB=00 and AB=01, columns CD=00 and CD=01). A=0 across both rows, and C=0 across both columns. So the simplified expression is ¬A∧¬C.",
+      "groupDesc": "One group of 4: rows AB=00–01, columns CD=00–01 (A=0, C=0)"
+    },
+    {
+      "id": 7,
+      "title": "Wrap-Around Group — ¬B",
+      "difficulty": 2,
+      "minterms": [0, 1, 2, 3, 8, 9, 10, 11],
+      "simplifiedSOP": "¬B",
+      "simplifiedAcceptable": ["¬B", "NOT B", "B'", "!B"],
+      "hint": "The K-Map wraps around — the top row (AB=00) and bottom row (AB=10) are adjacent. What do they have in common?",
+      "explanation": "Minterms 0–3 (row AB=00) and 8–11 (row AB=10) both have B=0. These two rows wrap around to form a group of 8. Only B=0 is constant across all cells, so the simplified expression is ¬B.",
+      "groupDesc": "One wrap-around group of 8: rows AB=00 and AB=10 (B=0)"
+    },
+    {
+      "id": 8,
+      "title": "Single Group — B∧D",
+      "difficulty": 2,
+      "minterms": [5, 7, 13, 15],
+      "simplifiedSOP": "B∧D",
+      "simplifiedAcceptable": ["B∧D", "B AND D", "BD", "B·D", "B.D", "D∧B", "D AND B", "DB", "D·B", "D.B"],
+      "hint": "All four minterms form a 2×2 block in the middle of the K-Map. Identify the two variables that equal 1 in every cell.",
+      "explanation": "Minterms 5, 7, 13 and 15 form a 2×2 block at rows AB=01,11 and columns CD=01,11. Both B=1 and D=1 in every cell. So the simplified expression is B∧D.",
+      "groupDesc": "One group of 4: rows AB=01–11, columns CD=01–11 (B=1, D=1)"
+    },
+    {
+      "id": 9,
+      "title": "Two Groups — (¬A∧D) ∨ (A∧¬B)",
+      "difficulty": 3,
+      "minterms": [1, 3, 5, 7, 8, 9, 10, 11],
+      "simplifiedSOP": "(¬A∧D) ∨ (A∧¬B)",
+      "simplifiedAcceptable": [
+        "(¬A∧D) ∨ (A∧¬B)", "A'D + AB'", "A'.D + A.B'",
+        "¬A∧D ∨ A∧¬B", "(¬A ∧ D) ∨ (A ∧ ¬B)",
+        "(A∧¬B) ∨ (¬A∧D)", "AB' + A'D", "A.B' + A'.D"
+      ],
+      "hint": "Look for two separate rectangles. One covers 4 cells in the top two rows; another covers 4 cells in the bottom row. Draw them separately.",
+      "explanation": "Group 1: minterms 1,3,5,7 form rows AB=00–01, columns CD=01–11 (A=0, D=1) → ¬A∧D. Group 2: minterms 8,9,10,11 form row AB=10 entirely (A=1, B=0) → A∧¬B. Combined: (¬A∧D) ∨ (A∧¬B).",
+      "groupDesc": "Group 1 of 4: rows AB=00–01, columns CD=01–11 (¬A∧D). Group 2 of 4: row AB=10 (A∧¬B)"
+    },
+    {
+      "id": 10,
+      "title": "Two Groups — (¬A∧¬D) ∨ (A∧C)",
+      "difficulty": 3,
+      "minterms": [0, 2, 4, 6, 10, 11, 14, 15],
+      "simplifiedSOP": "(¬A∧¬D) ∨ (A∧C)",
+      "simplifiedAcceptable": [
+        "(¬A∧¬D) ∨ (A∧C)", "A'D' + AC", "A'.D' + A.C",
+        "¬A∧¬D ∨ A∧C", "(¬A ∧ ¬D) ∨ (A ∧ C)",
+        "(A∧C) ∨ (¬A∧¬D)", "AC + A'D'", "A.C + A'.D'"
+      ],
+      "hint": "Identify two separate groups. One wraps around the left and right edges (both D=0). The other is in the bottom-right 2×2 corner (both A=1 and C=1).",
+      "explanation": "Group 1: minterms 0,2,4,6 form rows AB=00–01, columns CD=00 and CD=10 (A=0, D=0) → ¬A∧¬D (wrap-around columns). Group 2: minterms 10,11,14,15 form rows AB=10–11, columns CD=10–11 (A=1, C=1) → A∧C. Combined: (¬A∧¬D) ∨ (A∧C).",
+      "groupDesc": "Group 1 of 4: rows AB=00–01, wrap-around cols CD=00 and CD=10 (¬A∧¬D). Group 2 of 4: rows AB=10–11, columns CD=10–11 (A∧C)"
+    }
+  ]
+}
