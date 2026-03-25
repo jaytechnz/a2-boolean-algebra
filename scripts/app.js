@@ -2116,11 +2116,12 @@ function _matchesMinterms(exprStr, minterms) {
   return true;
 }
 
-/** Returns the minterm number for K-Map cell (row r, col c), Gray-code ordered. */
+/** Returns the minterm number for K-Map cell (row r, col c).
+ *  Layout: AB across the top (columns), CD down the side (rows). */
 function _kmapCellMinterm(r, c) {
-  const rowAB = [0, 1, 3, 2]; // AB Gray: 00,01,11,10
-  const colCD = [0, 1, 3, 2]; // CD Gray: 00,01,11,10
-  const ab = rowAB[r], cd = colCD[c];
+  const colAB = [0, 1, 3, 2]; // AB Gray: 00,01,11,10
+  const rowCD = [0, 1, 3, 2]; // CD Gray: 00,01,11,10
+  const ab = colAB[c], cd = rowCD[r];
   return ((ab >> 1) & 1) * 8 + (ab & 1) * 4 + ((cd >> 1) & 1) * 2 + (cd & 1);
 }
 
@@ -2171,7 +2172,7 @@ const KMap = {
   },
 
   _resetState() {
-    this._state = { step1: 'active', step2: 'locked', step3: 'locked', step4: 'locked' };
+    this._state = { step1: 'active', step2: 'locked', step3: 'locked', step4: 'locked', step1Answer: '' };
     this._cellValues = Array.from({ length: 4 }, () => Array(4).fill(0));
     this._hasDrawing = false;
     this._currentColor = 0;
@@ -2243,17 +2244,23 @@ const KMap = {
           Join all terms with <code>+</code>.
         </div>
         <div class="kmap-answer-row">
-          <input type="text" class="kmap-answer-input" id="kmap-sop-input"
+          <input type="text" class="kmap-answer-input ${done ? 'correct' : ''}" id="kmap-sop-input"
             placeholder="e.g. A'B'C'D + A'B'CD + ..."
-            ${done ? `value="${this._sopPlaceholder(ex)}" disabled` : ''}
+            ${done ? `value="${this._state.step1Answer}" disabled` : ''}
             oninput="KMap._updatePreview('kmap-sop-preview','kmap-sop-input')"
             onkeydown="if(event.key==='Enter')KMap.checkStep1()">
           <button class="btn btn-primary" onclick="KMap.checkStep1()" ${done ? 'disabled' : ''}>Check SOP</button>
         </div>
-        <div class="live-preview live-preview-inline" id="kmap-sop-preview" style="margin-bottom:8px;">
-          <div class="live-preview-label">CIE Notation Preview</div>
-          <div class="live-preview-content" id="kmap-sop-preview-content"></div>
-        </div>
+        ${done
+          ? `<div class="live-preview live-preview-inline visible" style="margin-bottom:8px;">
+              <div class="live-preview-label">CIE Notation Preview</div>
+              <div class="live-preview-content">${renderTypedInput(this._state.step1Answer)}</div>
+             </div>`
+          : `<div class="live-preview live-preview-inline" id="kmap-sop-preview" style="margin-bottom:8px;">
+              <div class="live-preview-label">CIE Notation Preview</div>
+              <div class="live-preview-content" id="kmap-sop-preview-content"></div>
+             </div>`
+        }
         <div id="kmap-step1-feedback"></div>
       </div>`;
   },
@@ -2367,6 +2374,7 @@ const KMap = {
       input.classList.add('correct');
       input.disabled = true;
       this._state.step1 = 'correct';
+      this._state.step1Answer = val;
       this._state.step2 = 'active';
       fb.innerHTML = '<div class="kmap-feedback correct">Correct! Your SOP matches the truth table. Now fill in the K-Map.</div>';
       // Re-render step 2 as unlocked
@@ -2599,12 +2607,13 @@ const KMap = {
 
   _kmapGridHTML(minterms, mode) {
     // mode: 'fill' (student fills step 2) | 'values' (show correct values, read-only)
+    // Layout: AB across the top (columns), CD down the side (rows)
     const mintSet = new Set(minterms);
-    const rowLabels = ['00', '01', '11', '10'];
-    const colLabels = ['00', '01', '11', '10'];
+    const colLabels = ['00', '01', '11', '10']; // AB values
+    const rowLabels = ['00', '01', '11', '10']; // CD values
 
     let cells = `
-      <div class="kmap-corner">AB \\ CD</div>
+      <div class="kmap-corner">CD \\ AB</div>
       <div class="kmap-col-hdr">${colLabels[0]}</div>
       <div class="kmap-col-hdr">${colLabels[1]}</div>
       <div class="kmap-col-hdr">${colLabels[2]}</div>
