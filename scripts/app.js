@@ -2290,7 +2290,7 @@ const KMap = {
   _renderStep3(ex, status) {
     const locked = status === 'locked';
     const done   = status === 'done';
-    const gridHTML = this._kmapGridHTML(ex.minterms, 'blank');
+    const gridHTML = this._kmapGridHTML(ex.minterms, 'student');
 
     const swatches = this._loopColors.map((c, i) =>
       `<div class="kmap-loop-swatch ${i === this._currentColor ? 'active' : ''}"
@@ -2629,8 +2629,15 @@ const KMap = {
             <span class="cell-mt">${mt}</span>
             <span class="cell-val">${val}</span>
           </div>`;
+        } else if (mode === 'student') {
+          // Student's own filled values, read-only — used in step 3 canvas drawing
+          const sv = this._cellValues[r][c];
+          cells += `<div class="kmap-cell ${sv ? 'cell-one' : 'cell-zero'}" data-r="${r}" data-c="${c}" style="cursor:default;">
+            <span class="cell-mt">${mt}</span>
+            <span class="cell-val">${sv}</span>
+          </div>`;
         } else if (mode === 'blank') {
-          // Empty grid for loop drawing — no values shown
+          // Empty grid — no values shown
           cells += `<div class="kmap-cell cell-zero" data-r="${r}" data-c="${c}" style="cursor:default;">
             <span class="cell-mt">${mt}</span>
           </div>`;
