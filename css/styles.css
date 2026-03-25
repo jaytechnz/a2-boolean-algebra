@@ -1126,6 +1126,7 @@ p { color: var(--text-secondary); }
   padding-top: 1px;
   line-height: 1.15;
 }
+.ol + .ol { margin-left: 0.18em; }
 
 .law-formula .ol,
 .exercise-expression .ol {
