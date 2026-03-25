@@ -1434,7 +1434,21 @@ const Teacher = {
       ? atRiskList.map(st => `<div class="at-risk-row" onclick="Teacher.selectStudent('${st.uid}')"><span class="at-risk-name">${st.progress.firstName}</span><span class="at-risk-stat">${st.accuracy}% (${st.attempted} done)</span></div>`).join('')
       : '<p style="font-size:0.85rem;color:var(--text-muted);">No at-risk students identified yet.</p>';
 
-    document.getElementById('teacher-detail-content').innerHTML = `<div class="class-detail-section"><h4>Topic Accuracy (Class Average)</h4>${catRows}</div><div class="class-detail-section"><h4>⚠ Students Needing Support</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Lowest-performing students — click to view details.</p>${atRiskHTML}</div>`;
+    const minAttempts = Math.max(1, Math.ceil(students.length * 0.25));
+    const hardestEx = EXERCISES.map(ex => {
+      const att = students.filter(st => st.exercises[ex.id]);
+      if (att.length < minAttempts) return null;
+      const cor = att.filter(st => st.exercises[ex.id]?.status === 'correct').length;
+      return { ex, att: att.length, cor, rate: cor / att.length };
+    }).filter(Boolean).sort((a, b) => a.rate - b.rate).slice(0, 5);
+    let hardestHTML = hardestEx.length > 0
+      ? hardestEx.map(d => `<div class="hard-ex-row"><span class="hard-ex-num">#${d.ex.id}</span><span class="hard-ex-title" title="${d.ex.title}">${d.ex.title}</span><span class="hard-ex-rate" style="color:${d.rate < 0.4 ? 'var(--error)' : 'var(--warning)'}">${d.cor}/${d.att} (${Math.round(d.rate*100)}%)</span></div>`).join('')
+      : '<p style="font-size:0.85rem;color:var(--text-muted);">Not enough data yet.</p>';
+
+    document.getElementById('teacher-detail-content').innerHTML = `
+      <div class="class-detail-section"><h4>Topic Accuracy (Class Average)</h4>${catRows}</div>
+      <div class="class-detail-section"><h4>🔴 Hardest Exercises</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Lowest correct rate among attempted exercises.</p>${hardestHTML}</div>
+      <div class="class-detail-section"><h4>⚠ Students Needing Support</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Lowest-performing students — click to view details.</p>${atRiskHTML}</div>`;
   },
 
   // ── Select / Deselect Student ──
@@ -1505,6 +1519,23 @@ const Teacher = {
 
     document.getElementById('detail-card-title').innerHTML = `📊 ${progress.firstName} <span style="font-weight:400;font-size:0.78rem;color:var(--text-muted);">${progress.email || ''}</span> <button class="btn btn-secondary btn-sm" style="margin-left:auto;font-size:0.72rem;" onclick="Teacher.deselectStudent()">← Back to Class</button>`;
 
+    // Law-level accuracy breakdown
+    const lawGroups = {};
+    EXERCISES.forEach(ex => {
+      if (!lawGroups[ex.lawUsed]) lawGroups[ex.lawUsed] = [];
+      lawGroups[ex.lawUsed].push(ex);
+    });
+    let lawBreakdown = '';
+    for (const [law, exs] of Object.entries(lawGroups)) {
+      const att = exs.filter(e => exercises[e.id]);
+      if (att.length === 0) continue;
+      const cor = att.filter(e => exercises[e.id]?.status === 'correct').length;
+      const hin = att.filter(e => exercises[e.id]?.hintUsed).length;
+      const pct = Math.round(cor / att.length * 100);
+      const col = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--error)';
+      lawBreakdown += `<div class="law-acc-row"><span class="law-acc-name">${law}</span><div class="law-acc-bar"><div class="law-acc-bar-fill" style="width:${pct}%;background:${col}"></div></div><span class="law-acc-stat" style="color:${col}">${cor}/${att.length}</span>${hin > 0 ? `<span class="law-acc-hint">${hin}H</span>` : ''}</div>`;
+    }
+
     document.getElementById('teacher-detail-content').innerHTML = `
       <div class="student-detail">
         <div class="student-detail-stats">
@@ -1516,6 +1547,7 @@ const Teacher = {
         </div>
         <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">Last active: ${lastActive}</div>
         <div class="detail-section"><h4>Topic Breakdown</h4>${catBreakdown}</div>
+        <div class="detail-section"><h4>Law-by-Law Accuracy</h4><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">H = hint used. Shows which specific laws are causing difficulty.</p>${lawBreakdown || '<p style="font-size:0.85rem;color:var(--text-muted);">No exercises attempted yet.</p>'}</div>
         <div class="detail-section"><h4>Difficulty Breakdown</h4><p class="diff-breakdown">${diffBreakdown}</p></div>
         <div class="detail-section" style="margin-bottom:0;"><h4>Understanding Radar</h4><div class="chart-container"><canvas id="radar-chart"></canvas></div></div>
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -1629,51 +1661,151 @@ const Teacher = {
     }
   },
 
-  // ── Suggestions ──
+  // ── Diagnostic Insights ──
+
+  // Renders three labelled sections: Cognitive, Stylistic, Skills
+  _renderDiagnosticSections(cognitive, stylistic, skills) {
+    if (cognitive.length + stylistic.length + skills.length === 0) {
+      return '<p style="color:var(--text-muted);font-size:0.9rem;">Not enough data yet.</p>';
+    }
+    const section = (icon, label, color, items) => items.length === 0 ? '' : `
+      <div class="diag-section">
+        <div class="diag-section-header" style="color:${color}">${icon} ${label}</div>
+        ${items.map(t => `<div class="diag-item">${t}</div>`).join('')}
+      </div>`;
+    return section('🧠', 'Cognitive — Concept Understanding', 'var(--error)', cognitive)
+         + section('✏️', 'Stylistic — Notation &amp; Recall', 'var(--warning)', stylistic)
+         + section('🔧', 'Skills — Procedure &amp; Engagement', 'var(--blue)', skills);
+  },
+
   renderSuggestions(uid) {
     const container = document.getElementById('suggestion-content');
     if (!container) return;
+
+    const SINGLE_CATS = ['de_morgan','absorption','identity_null','commutative_associative','inverse_complement','double_negation'];
+    const MULTI_CATS  = ['multi_step','cie_exam'];
+
+    // ── CLASS LEVEL ──
     if (!uid) {
       document.getElementById('suggestion-target').textContent = 'Class Overview';
       const students = this._getAllStudents();
       if (students.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No data yet.</p>'; return; }
-      const suggestions = [];
+
+      const cognitive = [], stylistic = [], skills = [];
+
       for (const [key, meta] of Object.entries(CATEGORIES)) {
         const ce = EXERCISES.filter(e => e.category === key);
-        let tp = 0, c = 0;
-        students.forEach(st => { const ca = ce.filter(e => st.exercises[e.id]).length; const cc = ce.filter(e => st.exercises[e.id]?.status === 'correct').length; if (ca > 0) { tp += (cc / ca) * 100; c++; } });
-        const avg = c > 0 ? Math.round(tp / c) : -1;
-        if (avg >= 0 && avg < 40) suggestions.push({ priority: 'high', text: `Class struggling with <strong>${meta.name}</strong> (${avg}% avg). Re-teach with worked examples.` });
-        else if (avg >= 40 && avg < 60) suggestions.push({ priority: 'medium', text: `<strong>${meta.name}</strong> moderate (${avg}%). Revision session recommended.` });
-        const notStarted = students.filter(st => ce.every(e => !st.exercises[e.id])).length;
-        if (notStarted > students.length * 0.5 && students.length >= 3) suggestions.push({ priority: 'medium', text: `${notStarted}/${students.length} haven't started <strong>${meta.name}</strong>. Assign as homework.` });
+        let accSum = 0, hintSum = 0, n = 0;
+        students.forEach(st => {
+          const ca = ce.filter(e => st.exercises[e.id]).length;
+          if (ca < 2) return;
+          const cc = ce.filter(e => st.exercises[e.id]?.status === 'correct').length;
+          const ch = ce.filter(e => st.exercises[e.id]?.hintUsed).length;
+          accSum += cc / ca; hintSum += ch / ca; n++;
+        });
+        if (n < Math.max(1, Math.ceil(students.length * 0.25))) continue;
+        const avgAcc = accSum / n, avgHint = hintSum / n;
+
+        if (avgAcc < 0.4)
+          cognitive.push(`Class average on <strong>${meta.name}</strong> is ${Math.round(avgAcc*100)}% — likely a teaching gap. Re-teach with worked examples before assigning more practice.`);
+        else if (avgAcc < 0.6)
+          cognitive.push(`<strong>${meta.name}</strong> partially understood across the class (${Math.round(avgAcc*100)}%). A targeted review lesson is recommended.`);
+
+        if (avgHint > 0.55 && avgAcc >= 0.5)
+          stylistic.push(`Students consistently use hints on <strong>${meta.name}</strong> (${Math.round(avgHint*100)}% of attempts). They understand the law but can't independently recall or write it — drill closed-book recall.`);
       }
+
+      // Cognitive: multi-step gap
+      let sAcc = 0, sN = 0, mAcc = 0, mN = 0;
+      students.forEach(st => {
+        const se = EXERCISES.filter(e => SINGLE_CATS.includes(e.category) && st.exercises[e.id]);
+        if (se.length >= 3) { sAcc += se.filter(e => st.exercises[e.id]?.status === 'correct').length / se.length; sN++; }
+        const me = EXERCISES.filter(e => MULTI_CATS.includes(e.category) && st.exercises[e.id]);
+        if (me.length >= 2) { mAcc += me.filter(e => st.exercises[e.id]?.status === 'correct').length / me.length; mN++; }
+      });
+      if (sN >= 2 && mN >= 2 && (sAcc/sN) > 0.65 && (mAcc/mN) < 0.45)
+        cognitive.push(`Class manages individual laws (${Math.round(sAcc/sN*100)}%) but struggles to chain them in multi-step problems (${Math.round(mAcc/mN*100)}%). Teach explicit problem decomposition strategies.`);
+
+      // Skills
       const atRisk = students.filter(s => s.attempted >= 3 && s.accuracy < 40);
-      if (atRisk.length > 0) suggestions.push({ priority: 'high', text: `<strong>${atRisk.length} at-risk student${atRisk.length > 1 ? 's' : ''}</strong>: ${atRisk.map(s => s.progress.firstName).join(', ')}. Consider targeted intervention.` });
+      if (atRisk.length > 0)
+        skills.push(`${atRisk.length} student${atRisk.length>1?'s':''} at risk (≥3 attempts, <40% accuracy): <strong>${atRisk.map(s => s.progress.firstName).join(', ')}</strong>. Targeted 1-to-1 support recommended.`);
+
       const lowEng = students.filter(s => s.attempted < 5);
-      if (lowEng.length > students.length * 0.4 && students.length >= 3) suggestions.push({ priority: 'medium', text: `${lowEng.length} students completed &lt;5 exercises. Set minimum weekly targets.` });
-      suggestions.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] - { high: 0, medium: 1, low: 2 }[b.priority]));
-      container.innerHTML = suggestions.length === 0 ? '<p style="color:var(--text-muted);font-size:0.9rem;">No class concerns. Select a student for individual analysis.</p>' : suggestions.map(s => `<div class="suggestion-item"><span class="priority ${s.priority}">${s.priority}</span> ${s.text}</div>`).join('');
+      if (lowEng.length > students.length * 0.4 && students.length >= 3)
+        skills.push(`${lowEng.length}/${students.length} students have completed fewer than 5 exercises — low engagement. Set a minimum weekly target.`);
+
+      const notStartedMulti = students.filter(s => MULTI_CATS.every(cat => EXERCISES.filter(e => e.category === cat).every(e => !s.exercises[e.id]))).length;
+      if (notStartedMulti > students.length * 0.5 && students.length >= 3)
+        skills.push(`${notStartedMulti}/${students.length} students haven't attempted any multi-step or CIE-style questions. These are high-value for exam prep.`);
+
+      container.innerHTML = this._renderDiagnosticSections(cognitive, stylistic, skills);
       return;
     }
+
+    // ── STUDENT LEVEL ──
     document.getElementById('suggestion-target').textContent = (getProgress(uid)?.firstName || uid);
-    const progress = getProgress(uid), exercises = progress?.exercises || {}, name = progress?.firstName || uid;
-    const suggestions = [];
+    const progress = getProgress(uid), exercises = progress?.exercises || {};
+    const cognitive = [], stylistic = [], skills = [];
+
     for (const [key, meta] of Object.entries(CATEGORIES)) {
-      const ce = EXERCISES.filter(e => e.category === key), ca = ce.filter(e => exercises[e.id]), cc = ce.filter(e => exercises[e.id]?.status === 'correct'), ch = ce.filter(e => exercises[e.id]?.hintUsed);
-      const p = ca.length > 0 ? (cc.length / ca.length) * 100 : -1, comp = (ca.length / ce.length) * 100;
-      if (ca.length === 0) { suggestions.push({ priority: 'medium', text: `${name} hasn't started <strong>${meta.name}</strong>.` }); continue; }
-      if (p < 40 && ca.length >= 3) suggestions.push({ priority: 'high', text: `${name} struggling with <strong>${meta.name}</strong> (${Math.round(p)}%). Truth-table review needed.` });
-      else if (p < 65 && ca.length >= 2) suggestions.push({ priority: 'medium', text: `${name} partial on <strong>${meta.name}</strong> (${Math.round(p)}%). Conceptual or notational?` });
-      if (ch.length > ca.length * 0.6 && ca.length >= 3) suggestions.push({ priority: 'medium', text: `${name} hint-reliant on <strong>${meta.name}</strong> (${ch.length}/${ca.length}). Scaffolded practice.` });
-      if (p >= 80 && comp >= 60) suggestions.push({ priority: 'low', text: `${name} strong in <strong>${meta.name}</strong> (${Math.round(p)}%). Extend or peer tutor.` });
+      const ce = EXERCISES.filter(e => e.category === key);
+      const ca = ce.filter(e => exercises[e.id]);
+      if (ca.length === 0) continue;
+      const cc = ca.filter(e => exercises[e.id]?.status === 'correct');
+      const ch = ca.filter(e => exercises[e.id]?.hintUsed);
+      const acc = cc.length / ca.length, hintRate = ch.length / ca.length;
+
+      // Cognitive: wrong even with hints = deep confusion
+      if (acc < 0.4 && hintRate >= 0.5 && ca.length >= 3)
+        cognitive.push(`Deep confusion in <strong>${meta.name}</strong> — hints aren't helping (${Math.round(acc*100)}% correct despite ${ch.length} hints). Needs worked examples and concept explanation, not more practice.`);
+      // Cognitive: genuinely wrong without hint crutch
+      else if (acc < 0.4 && ca.length >= 3)
+        cognitive.push(`Misunderstands <strong>${meta.name}</strong> (${Math.round(acc*100)}% correct, ${ch.length} hint${ch.length!==1?'s':''}). The concept itself may be unclear — try verifying with a truth table.`);
+      // Cognitive: partial — something specific is wrong
+      else if (acc < 0.65 && ca.length >= 2)
+        cognitive.push(`Partial understanding of <strong>${meta.name}</strong> (${Math.round(acc*100)}%). Getting some right, some wrong — likely a specific misconception rather than a complete gap.`);
+
+      // Stylistic: knows it but hint-reliant — notation/recall issue
+      if (hintRate > 0.6 && acc >= 0.55)
+        stylistic.push(`Hint-dependent on <strong>${meta.name}</strong> (${ch.length}/${ca.length} exercises needed a hint). Understands the law but can't independently produce the notation — practise writing answers from memory before looking.`);
     }
-    [1,2,3].forEach(d => { const l = d === 1 ? 'Easy' : d === 2 ? 'Medium' : 'Hard'; const de = EXERCISES.filter(e => e.difficulty === d), da = de.filter(e => exercises[e.id]), dc = de.filter(e => exercises[e.id]?.status === 'correct'); const p = da.length > 0 ? (dc.length / da.length) * 100 : -1; if (d === 1 && p >= 0 && p < 50 && da.length >= 3) suggestions.push({ priority: 'high', text: `${name} struggles with <strong>${l}</strong> (${Math.round(p)}%). Foundations needed.` }); if (d === 3 && p >= 70 && da.length >= 5) suggestions.push({ priority: 'low', text: `${name} handles <strong>Hard</strong> well (${Math.round(p)}%). Ready for past papers.` }); });
-    const ta = Object.keys(exercises).length, tc = Object.values(exercises).filter(e => e.status === 'correct').length;
-    if (ta >= 20 && (tc / ta) >= 0.8) suggestions.push({ priority: 'low', text: `Overall strong (${Math.round((tc/ta)*100)}%). Timed CIE practice.` });
-    if (ta > 0 && ta < 10) suggestions.push({ priority: 'medium', text: `${name} only ${ta} exercises attempted. Encourage regular practice.` });
-    suggestions.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] - { high: 0, medium: 1, low: 2 }[b.priority]));
-    container.innerHTML = suggestions.length === 0 ? '<p style="color:var(--text-muted);font-size:0.9rem;">Not enough data yet.</p>' : suggestions.map(s => `<div class="suggestion-item"><span class="priority ${s.priority}">${s.priority}</span> ${s.text}</div>`).join('');
+
+    // Cognitive: passes single-step but fails multi-step = chaining gap, not conceptual
+    const sEx = EXERCISES.filter(e => SINGLE_CATS.includes(e.category) && exercises[e.id]);
+    const mEx = EXERCISES.filter(e => MULTI_CATS.includes(e.category) && exercises[e.id]);
+    if (sEx.length >= 5 && mEx.length >= 2) {
+      const sA = sEx.filter(e => exercises[e.id]?.status === 'correct').length / sEx.length;
+      const mA = mEx.filter(e => exercises[e.id]?.status === 'correct').length / mEx.length;
+      if (sA > 0.65 && mA < 0.4)
+        cognitive.push(`Applies individual laws correctly (${Math.round(sA*100)}%) but can't chain them in multi-step problems (${Math.round(mA*100)}%). This is a problem-decomposition gap — practise breaking expressions into sub-goals before simplifying.`);
+    }
+
+    // Skills: trial-and-error pattern (high average attempts)
+    const allAtt = Object.values(exercises);
+    if (allAtt.length >= 5) {
+      const avgAttempts = allAtt.reduce((s, e) => s + (e.attempts || 1), 0) / allAtt.length;
+      if (avgAttempts > 2.5)
+        skills.push(`Averaging ${avgAttempts.toFixed(1)} attempts per exercise — suggests submitting guesses rather than working through the logic. Encourage writing each simplification step before submitting.`);
+    }
+
+    // Skills: ready to move up in difficulty
+    const d1att = EXERCISES.filter(e => e.difficulty === 1 && exercises[e.id]);
+    const d1cor = d1att.filter(e => exercises[e.id]?.status === 'correct').length;
+    const d2att = EXERCISES.filter(e => e.difficulty === 2 && exercises[e.id]).length;
+    if (d1att.length >= 5 && d1att.length > 0 && d1cor / d1att.length >= 0.7 && d2att < 3)
+      skills.push(`Performing well on Easy questions (${Math.round(d1cor/d1att.length*100)}%) but hasn't engaged with Medium or Hard. Ready to be pushed — try difficulty 2 exercises next.`);
+
+    // Skills: hard questions going well = ready for past papers
+    const d3att = EXERCISES.filter(e => e.difficulty === 3 && exercises[e.id]);
+    if (d3att.length >= 4 && d3att.filter(e => exercises[e.id]?.status === 'correct').length / d3att.length >= 0.7)
+      skills.push(`Handling Hard exercises well. Ready for timed CIE past paper questions to build exam technique.`);
+
+    // Skills: low volume
+    if (allAtt.length > 0 && allAtt.length < 8)
+      skills.push(`Only ${allAtt.length} exercise${allAtt.length!==1?'s':''} attempted so far. Fluency comes from volume — encourage a short daily practice habit.`);
+
+    container.innerHTML = this._renderDiagnosticSections(cognitive, stylistic, skills);
   },
 
   // ── Utilities ──
