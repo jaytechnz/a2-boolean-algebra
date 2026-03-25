@@ -2176,6 +2176,7 @@ const KMap = {
     this._cellValues = Array.from({ length: 4 }, () => Array(4).fill(0));
     this._hasDrawing = false;
     this._currentColor = 0;
+    this._canvasImageData = null;
   },
 
   _ex() { return this.exercises[this.currentIndex]; },
@@ -2425,6 +2426,9 @@ const KMap = {
         '<div class="kmap-feedback info">Draw at least one loop on the K-Map before continuing.</div>';
       return;
     }
+    // Save the drawing before the DOM is rebuilt
+    const canvas = document.getElementById('kmap-draw-canvas');
+    if (canvas) this._canvasImageData = canvas.toDataURL();
     this._state.step3 = 'done';
     this._state.step4 = 'active';
     document.getElementById('kmap-step3-feedback').innerHTML =
@@ -2514,6 +2518,13 @@ const KMap = {
     canvas.style.height = (4 * cellH) + 'px';
 
     const ctx = canvas.getContext('2d');
+
+    // Restore saved drawing after canvas is sized (setting width/height clears it)
+    if (this._canvasImageData) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0);
+      img.src = this._canvasImageData;
+    }
 
     const getPos = (e) => {
       const rect = canvas.getBoundingClientRect();
