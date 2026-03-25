@@ -2406,11 +2406,21 @@ const KMap = {
           <div class="kmap-step-title">Fill in the K-Map — click each cell to enter 0 or 1</div>
           ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
         </div>
-        <div class="kmap-grid-outer">
-          ${gridHTML}
+        <div class="kmap-step2-layout">
+          <div class="kmap-grid-outer">${gridHTML}</div>
+          <div class="kmap-step2-sop">
+            <div class="kmap-sop-hint" style="margin-bottom:10px;">
+              <strong>Your SOP from Step 1:</strong>
+            </div>
+            <div class="kmap-step2-sop-answer">${renderTypedInput(this._state.step1Answer)}</div>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:10px;line-height:1.6;">
+              For each term in your SOP, identify the rows where Q=1 and click those cells to enter 1.
+              All other cells are 0.
+            </p>
+            <button class="btn btn-primary" style="margin-top:12px;" onclick="KMap.checkStep2()" ${done || locked ? 'disabled' : ''}>Check K-Map</button>
+            <div id="kmap-step2-feedback" style="margin-top:8px;"></div>
+          </div>
         </div>
-        <button class="btn btn-primary" onclick="KMap.checkStep2()" ${done || locked ? 'disabled' : ''}>Check K-Map</button>
-        <div id="kmap-step2-feedback"></div>
       </div>`;
   },
 
