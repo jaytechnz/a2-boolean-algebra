@@ -2172,7 +2172,7 @@ const KMap = {
   },
 
   _resetState() {
-    this._state = { step1: 'active', step2: 'locked', step3: 'locked', step4: 'locked', step1Answer: '' };
+    this._state = { step1: 'active', step2: 'locked', step3: 'locked', step4: 'locked', step1Answer: '', step3Groups: '' };
     this._cellValues = Array.from({ length: 4 }, () => Array(4).fill(0));
     this._hasDrawing = false;
     this._currentColor = 0;
@@ -2303,15 +2303,14 @@ const KMap = {
         <div class="kmap-step-header">
           <div class="kmap-step-num">3</div>
           <div class="kmap-step-title">Draw loops to group the 1s — use mouse or stylus</div>
-          ${done ? '<span class="kmap-step-badge correct-badge">✓ Done</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
+          ${done ? '<span class="kmap-step-badge correct-badge">✓ Correct</span>' : locked ? '<span class="kmap-step-badge locked-badge">Locked</span>' : ''}
         </div>
         <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:10px;">
-          Draw ellipses or rectangles over groups of 1s. Groups must be powers of 2 (1,2,4,8). The K-Map wraps — top/bottom and left/right edges are adjacent.
-          ${done ? '<br><strong style="color:var(--success);">Group hint: ' + ex.groupDesc + '</strong>' : ''}
+          Draw loops over groups of 1s. Groups must be powers of 2 (1, 2, 4, 8). The K-Map wraps — top and bottom rows are adjacent, as are left and right columns.
         </p>
         <div class="kmap-loop-colors">
           ${swatches}
-          <button class="btn btn-secondary btn-sm" onclick="KMap._clearCanvas()" style="margin-left:4px;">Clear</button>
+          <button class="btn btn-secondary btn-sm" onclick="KMap._clearCanvas()" style="margin-left:4px;">Clear &amp; Reset</button>
         </div>
         <div class="kmap-grid-outer">
           <div class="kmap-draw-wrap" id="kmap-draw-wrap">
@@ -2319,10 +2318,19 @@ const KMap = {
             <canvas id="kmap-draw-canvas" class="kmap-draw-canvas"></canvas>
           </div>
         </div>
+        <div style="margin-top:14px;">
+          <label style="font-size:0.8rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:6px;">
+            List your groups — one per line, enter the minterm numbers separated by commas:
+          </label>
+          <textarea id="kmap-groups-input" rows="3"
+            style="width:100%;font-family:var(--font-mono);font-size:0.88rem;padding:8px 10px;border:2px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);resize:vertical;"
+            placeholder="e.g.&#10;1,3,5,7&#10;8,9,10,11"
+            ${done ? 'disabled' : ''}>${done ? this._state.step3Groups : ''}</textarea>
+        </div>
         <button class="btn btn-primary" onclick="KMap.confirmStep3()" ${done || locked ? 'disabled' : ''} style="margin-top:10px;">
-          I've drawn my groups →
+          Check Groups →
         </button>
-        <div id="kmap-step3-feedback"></div>
+        <div id="kmap-step3-feedback">${done ? '<div class="kmap-feedback correct">Groups correct! Now write the simplified SOP below.</div>' : ''}</div>
       </div>`;
   },
 
@@ -2421,18 +2429,33 @@ const KMap = {
   },
 
   confirmStep3() {
+    const fb = document.getElementById('kmap-step3-feedback');
+
     if (!this._hasDrawing) {
-      document.getElementById('kmap-step3-feedback').innerHTML =
-        '<div class="kmap-feedback info">Draw at least one loop on the K-Map before continuing.</div>';
+      fb.innerHTML = '<div class="kmap-feedback info">Draw at least one loop on the K-Map before continuing.</div>';
       return;
     }
-    // Save the drawing before the DOM is rebuilt
+
+    const groupsInput = document.getElementById('kmap-groups-input');
+    const groupsText = groupsInput ? groupsInput.value.trim() : '';
+    if (!groupsText) {
+      fb.innerHTML = '<div class="kmap-feedback info">List the minterm numbers in your groups before continuing.</div>';
+      return;
+    }
+
+    const ex = this._ex();
+    const result = this._validateGroups(groupsText, ex.minterms);
+    if (!result.valid) {
+      fb.innerHTML = `<div class="kmap-feedback incorrect">${result.msg}</div>`;
+      return;
+    }
+
+    // Save drawing and groups before DOM rebuild
     const canvas = document.getElementById('kmap-draw-canvas');
     if (canvas) this._canvasImageData = canvas.toDataURL();
+    this._state.step3Groups = groupsText;
     this._state.step3 = 'done';
     this._state.step4 = 'active';
-    document.getElementById('kmap-step3-feedback').innerHTML =
-      '<div class="kmap-feedback correct">Loops recorded. Now write the simplified SOP from your groupings.</div>';
     this._refreshSteps();
   },
 
@@ -2575,10 +2598,103 @@ const KMap = {
   },
 
   _clearCanvas() {
+    // Clear drawing state
     const canvas = document.getElementById('kmap-draw-canvas');
-    if (!canvas) return;
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     this._hasDrawing = false;
+    this._canvasImageData = null;
+
+    // If Step 3 was already confirmed, reset it and lock Step 4
+    if (this._state.step3 === 'done') {
+      this._state.step3 = 'active';
+      this._state.step3Groups = '';
+      this._state.step4 = 'locked';
+      this._refreshSteps();
+    } else {
+      // Step 3 still active — just clear the groups textarea
+      const groupsInput = document.getElementById('kmap-groups-input');
+      if (groupsInput) groupsInput.value = '';
+      const fb = document.getElementById('kmap-step3-feedback');
+      if (fb) fb.innerHTML = '';
+    }
+  },
+
+  /** Validate student-entered groups against the exercise minterms.
+   *  groupsText: newline-separated lines, each line is comma-separated minterm numbers.
+   *  Returns { valid: true } or { valid: false, msg: string }. */
+  _validateGroups(groupsText, minterms) {
+    const mintSet = new Set(minterms);
+
+    // Parse lines → arrays of integers
+    const groups = groupsText.split('\n')
+      .map(l => l.trim()).filter(l => l.length > 0)
+      .map(l => l.split(/[\s,]+/).map(n => parseInt(n, 10)).filter(n => !isNaN(n)))
+      .filter(g => g.length > 0);
+
+    if (groups.length === 0) return { valid: false, msg: 'No valid groups found — enter minterm numbers separated by commas.' };
+
+    for (const group of groups) {
+      // All minterms must be 1-cells
+      for (const m of group) {
+        if (m < 0 || m > 15) return { valid: false, msg: `Minterm ${m} is out of range (0–15).` };
+        if (!mintSet.has(m)) return { valid: false, msg: `Minterm ${m} is a 0-cell — loops must contain only 1s.` };
+      }
+
+      // Duplicates check
+      if (new Set(group).size !== group.length) return { valid: false, msg: `A group contains duplicate minterms.` };
+
+      // Size must be a power of 2
+      const size = group.length;
+      if (size === 0 || (size & (size - 1)) !== 0) {
+        return { valid: false, msg: `Group {${group.join(',')}} has ${size} cells — group sizes must be a power of 2 (1, 2, 4, 8).` };
+      }
+
+      // Must form a valid K-Map rectangle (including wrap-arounds)
+      if (!this._isValidKMapGroup(group)) {
+        return { valid: false, msg: `Group {${group.join(',')}} is not a valid K-Map rectangle. Check that the cells form a 1×2, 2×1, 2×2, 1×4, or 4×1 block (wrapping counts).` };
+      }
+    }
+
+    // Every 1-cell must be covered by at least one group
+    const covered = new Set(groups.flat());
+    const missing = minterms.filter(m => !covered.has(m));
+    if (missing.length > 0) {
+      return { valid: false, msg: `Minterm${missing.length > 1 ? 's' : ''} ${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} not covered by any group.` };
+    }
+
+    return { valid: true };
+  },
+
+  /** Returns true if the given minterm list forms a valid K-Map rectangle. */
+  _isValidKMapGroup(mints) {
+    const colAB = [0, 1, 3, 2]; // AB Gray code → column index
+    const rowCD = [0, 1, 3, 2]; // CD Gray code → row index
+
+    const positions = mints.map(m => {
+      const ab = ((m >> 3) & 1) * 2 + ((m >> 2) & 1); // A*2+B
+      const cd = ((m >> 1) & 1) * 2 + (m & 1);         // C*2+D
+      return { r: rowCD.indexOf(cd), c: colAB.indexOf(ab) };
+    });
+
+    const rows = [...new Set(positions.map(p => p.r))].sort((a, b) => a - b);
+    const cols = [...new Set(positions.map(p => p.c))].sort((a, b) => a - b);
+
+    // Must be a full rows×cols rectangle
+    if (rows.length * cols.length !== mints.length) return false;
+
+    return this._isValidKMapSpan(rows) && this._isValidKMapSpan(cols);
+  },
+
+  /** Returns true if a sorted set of K-Map indices forms a contiguous span (with wrap). */
+  _isValidKMapSpan(indices) {
+    const n = indices.length;
+    if (n === 1) return true;
+    if (n === 4) return indices[0] === 0 && indices[3] === 3;
+    if (n === 2) {
+      const [a, b] = indices;
+      return (b - a === 1) || (a === 0 && b === 3); // adjacent or wrap 0↔3
+    }
+    return false; // n=3 is never valid
   },
 
   _updatePreview(wrapId, inputId) {
