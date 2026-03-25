@@ -2077,6 +2077,212 @@ p { color: var(--text-secondary); }
   }
 }
 
+/* ── KARNAUGH MAPS SCREEN ── */
+
+.kmap-header { margin-bottom: 24px; }
+.kmap-header h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+.kmap-header p  { color: var(--text-muted); font-size: 0.9rem; }
+
+/* Nav between K-Map exercises */
+.kmap-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px 0;
+}
+.kmap-counter { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+
+/* Step cards */
+.kmap-step {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.kmap-step.locked {
+  opacity: 0.45;
+  pointer-events: none;
+  background: var(--bg);
+}
+.kmap-step.step-complete {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.kmap-step-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.kmap-step-num {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--blue); color: #fff;
+  font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+}
+.kmap-step.step-complete .kmap-step-num { background: var(--success); }
+.kmap-step.locked .kmap-step-num { background: var(--border); color: var(--text-muted); }
+.kmap-step-title {
+  font-weight: 700; font-size: 0.95rem; flex: 1;
+}
+.kmap-step-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 2px 8px;
+  border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.kmap-step-badge.locked-badge  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+.kmap-step-badge.correct-badge { background: var(--success-bg); color: #166534; }
+
+/* Truth table */
+.kmap-truth-table {
+  width: auto; border-collapse: collapse; margin-bottom: 16px;
+  font-family: var(--font-mono); font-size: 0.82rem;
+}
+.kmap-truth-table th {
+  background: var(--bg); color: var(--text-muted);
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  padding: 5px 10px; border: 1px solid var(--border); text-align: center;
+}
+.kmap-truth-table td {
+  padding: 4px 10px; border: 1px solid var(--border); text-align: center;
+  color: var(--text-primary);
+}
+.kmap-truth-table tr.minterm-row td { color: var(--blue); font-weight: 600; }
+.kmap-truth-table td.output-one { color: var(--success); font-weight: 700; }
+.kmap-truth-table td.output-zero { color: var(--text-muted); }
+
+/* K-Map grid (for steps 2 and 3) */
+.kmap-grid-outer {
+  overflow-x: auto; margin-bottom: 16px;
+}
+.kmap-grid {
+  display: inline-grid;
+  grid-template-columns: 56px repeat(4, 56px);
+  grid-template-rows: 36px repeat(4, 52px);
+  gap: 0;
+  border: 2px solid var(--navy);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  user-select: none;
+}
+.kmap-corner {
+  grid-column: 1; grid-row: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); font-size: 0.65rem; color: var(--text-muted);
+  font-weight: 600; border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 2px 4px; text-align: center; line-height: 1.3;
+}
+.kmap-col-hdr {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); font-size: 0.72rem; font-weight: 700;
+  color: var(--text-secondary); border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.kmap-col-hdr:last-child { border-right: none; }
+.kmap-row-hdr {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); font-size: 0.72rem; font-weight: 700;
+  color: var(--text-secondary); border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.kmap-cell {
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  transition: background 0.1s;
+  color: var(--text-primary); position: relative;
+}
+.kmap-cell:last-child { border-right: none; }
+.kmap-grid > .kmap-row-hdr:nth-child(n+17) { border-bottom: none; }
+
+/* Cell states */
+.kmap-cell.cell-one  { background: rgba(22,163,74,0.10); color: var(--success); }
+.kmap-cell.cell-zero { background: var(--bg-card); color: var(--text-muted); }
+.kmap-cell.cell-correct { background: rgba(22,163,74,0.18); }
+.kmap-cell.cell-wrong   { background: rgba(239,68,68,0.12); }
+
+/* Step 2: student clicks to fill cells */
+.kmap-cell.fillable:hover { background: rgba(84,120,255,0.08); cursor: pointer; }
+.kmap-cell.fillable.filled-one  { background: rgba(22,163,74,0.15); color: var(--success); }
+.kmap-cell.fillable.filled-zero { background: var(--bg-card); color: var(--text-muted); }
+
+/* Minterm number label (tiny, in corner) */
+.kmap-cell .cell-mt {
+  position: absolute; top: 2px; left: 3px;
+  font-size: 0.52rem; color: var(--text-muted); font-weight: 400;
+  pointer-events: none;
+}
+
+/* Step 3: canvas drawing overlay */
+.kmap-draw-wrap {
+  position: relative; display: inline-block;
+}
+.kmap-draw-canvas {
+  position: absolute;
+  top: 36px; left: 56px; /* offset for headers */
+  pointer-events: all;
+  border-radius: 0;
+  cursor: crosshair;
+}
+.kmap-loop-colors {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.kmap-loop-swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: border-color 0.15s; flex-shrink: 0;
+}
+.kmap-loop-swatch.active { border-color: var(--navy); }
+
+/* Answer input in steps 1 and 4 */
+.kmap-answer-row {
+  display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.kmap-answer-input {
+  font-family: var(--font-mono); font-size: 0.95rem;
+  padding: 8px 12px; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-card);
+  color: var(--text-primary); flex: 1; min-width: 180px;
+  transition: border-color 0.15s;
+}
+.kmap-answer-input:focus { outline: none; border-color: var(--blue); }
+.kmap-answer-input.correct { border-color: var(--success); }
+.kmap-answer-input.incorrect { border-color: var(--error); }
+
+/* Feedback within a step */
+.kmap-feedback {
+  margin-top: 10px; padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 0.86rem;
+}
+.kmap-feedback.correct  { background: var(--success-bg); color: #166534; }
+.kmap-feedback.incorrect{ background: var(--error-bg);   color: #991b1b; }
+.kmap-feedback.info     { background: rgba(84,120,255,0.07); color: var(--blue); }
+
+/* Complete banner */
+.kmap-complete-banner {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border: 2px solid var(--success); border-radius: var(--radius-md);
+  padding: 22px 24px; text-align: center; margin-top: 16px;
+}
+.kmap-complete-banner h3 { color: #14532d; font-size: 1.2rem; margin-bottom: 6px; }
+.kmap-complete-banner p  { color: #166534; font-size: 0.88rem; }
+
+/* SOP hint strip */
+.kmap-sop-hint {
+  font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;
+  line-height: 1.6; font-family: var(--font-mono);
+}
+.kmap-sop-hint strong { color: var(--text-secondary); }
+
+/* Variable labels above the K-Map */
+.kmap-var-labels {
+  display: flex; gap: 0; margin-bottom: 2px; padding-left: 56px;
+  font-size: 0.72rem; font-weight: 700; color: var(--blue);
+  font-family: var(--font-mono);
+}
+.kmap-var-labels span { width: 56px; text-align: center; }
+
 /* ── Print ── */
 @media print {
   .top-nav, .exercise-actions, .btn, .practice-filters { display: none !important; }
