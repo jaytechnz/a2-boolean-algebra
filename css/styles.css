@@ -1760,6 +1760,43 @@ p { color: var(--text-secondary); }
 .priority.medium { background: var(--warning-bg); color: #92400E; }
 .priority.low { background: var(--success-bg); color: #166534; }
 
+/* Diagnostic insight sections (Cognitive / Stylistic / Skills) */
+.diag-section { margin-bottom: 18px; }
+.diag-section:last-child { margin-bottom: 0; }
+.diag-section-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.73rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.diag-item {
+  padding: 7px 0 7px 2px; border-bottom: 1px solid rgba(0,0,0,0.04);
+  font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+}
+.diag-item:last-child { border-bottom: none; }
+.diag-item::before { content: '→ '; color: var(--text-muted); }
+
+/* Law-level accuracy rows in student detail */
+.law-acc-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; font-size: 0.8rem;
+}
+.law-acc-name { flex: 1; color: var(--text-secondary); min-width: 0; }
+.law-acc-bar { flex: 0 0 70px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.law-acc-bar-fill { height: 100%; border-radius: 3px; }
+.law-acc-stat { font-weight: 700; min-width: 32px; text-align: right; font-size: 0.75rem; }
+.law-acc-hint { font-size: 0.68rem; padding: 1px 5px; background: var(--warning-bg); color: #92400E; border-radius: var(--radius-full); flex-shrink: 0; }
+
+/* Hardest exercises list in class overview */
+.hard-ex-row {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--border); font-size: 0.82rem;
+}
+.hard-ex-row:last-child { border-bottom: none; }
+.hard-ex-num { font-weight: 700; color: var(--text-muted); min-width: 26px; font-size: 0.75rem; flex-shrink: 0; }
+.hard-ex-title { flex: 1; color: var(--text-secondary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hard-ex-rate { font-weight: 700; font-size: 0.78rem; flex-shrink: 0; }
+
 /* Radar chart canvas */
 .chart-container { position: relative; width: 100%; max-width: 360px; margin: 0 auto; }
 .chart-container canvas { width: 100% !important; height: auto !important; }
