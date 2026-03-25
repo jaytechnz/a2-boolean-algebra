@@ -24,6 +24,7 @@
       <button class="nav-link active" data-screen="dashboard" onclick="App.navigate('dashboard')">Dashboard</button>
       <button class="nav-link" data-screen="learn" onclick="App.navigate('learn')">Learn</button>
       <button class="nav-link" data-screen="practice" onclick="App.navigate('practice')">Practice</button>
+      <button class="nav-link" data-screen="kmap" onclick="App.navigate('kmap')">K-Maps</button>
       <button class="nav-link" data-screen="teacher" id="nav-teacher-link" onclick="App.navigate('teacher')">Teacher</button>
     </div>
     <div class="nav-user">
@@ -126,6 +127,19 @@
 
       <div class="exercise-area" id="exercise-area">
         <!-- Current exercise rendered here by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ KARNAUGH MAPS SCREEN ════════════ -->
+  <div class="screen" id="kmap-screen">
+    <div class="container">
+      <div class="kmap-header">
+        <h2>Karnaugh Maps</h2>
+        <p>Use truth tables and K-Map groupings to simplify Boolean expressions with 4 variables.</p>
+      </div>
+      <div id="kmap-exercise-area">
+        <!-- Rendered by JS -->
       </div>
     </div>
   </div>
