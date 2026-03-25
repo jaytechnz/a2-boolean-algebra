@@ -235,8 +235,10 @@
       <!-- ── Heatmap ── -->
       <div class="teacher-card" style="margin-bottom:20px;">
         <h3>🗺️ Exercise Heatmap — <span id="heatmap-student-name">Class Aggregate</span></h3>
-        <p class="teacher-card-desc">Each cell = one of 100 exercises. <span id="heatmap-mode-label">Colour intensity shows how many students answered correctly.</span></p>
+        <p class="teacher-card-desc">Each cell = one of 100 Boolean algebra exercises. <span id="heatmap-mode-label">Colour intensity shows how many students answered correctly.</span></p>
         <div class="heatmap-grid" id="heatmap-grid"></div>
+        <h4 style="margin-top:16px;margin-bottom:6px;font-size:0.88rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">K-Map Exercises</h4>
+        <div class="heatmap-grid heatmap-grid-kmap" id="kmap-heatmap-grid"></div>
         <div class="heatmap-legend" id="heatmap-legend">
           <span><span class="dot" style="background:var(--bg);border:1px solid var(--border)"></span> Not attempted</span>
           <span><span class="dot" style="background:var(--success)"></span> Correct</span>
