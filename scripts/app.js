@@ -2336,6 +2336,11 @@ const KMap = {
       ${this._renderStep3(ex, s.step3)}
       ${this._renderStep4(ex, s.step4)}
       ${s.step4 === 'correct' ? this._renderComplete(ex) : ''}
+      <div class="kmap-nav" style="margin-top:16px;">
+        <button class="btn btn-secondary btn-sm" onclick="KMap.prev()" ${this.currentIndex === 0 ? 'disabled' : ''}>← Previous</button>
+        <span class="kmap-counter">${this.currentIndex + 1} of ${this.exercises.length}</span>
+        <button class="btn btn-primary btn-sm" onclick="KMap.next()" ${this.currentIndex >= this.exercises.length - 1 ? 'disabled' : ''}>Next →</button>
+      </div>
     `;
 
     this._attachStep2Events();
