@@ -1298,6 +1298,7 @@ const Teacher = {
       this.renderHeatmapAggregate();
       this.renderSuggestions();
     }
+    FlipFlopDemo.render();
   },
 
   _getAllStudents() {
@@ -2949,6 +2950,345 @@ const KMap = {
 
 
 // ══════════════════════════════════════════
+//  FLIP-FLOP CIRCUIT REFERENCE + DEMO
+// ══════════════════════════════════════════
+
+function _norSRSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- Gate A (NOR) -->
+    <rect x="115" y="25" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
+    <text x="149" y="52" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">≥1</text>
+    <circle cx="189" cy="47" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- Gate B (NOR) -->
+    <rect x="115" y="116" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
+    <text x="149" y="143" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">≥1</text>
+    <circle cx="189" cy="138" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- S input -->
+    <line x1="20" y1="37" x2="115" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="6" y="41" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">S</text>
+    <!-- R input -->
+    <line x1="20" y1="128" x2="115" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="6" y="132" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">R</text>
+    <!-- Q output -->
+    <line x1="194" y1="47" x2="295" y2="47" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="299" y="51" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
+    <!-- Q-bar output -->
+    <line x1="194" y1="138" x2="295" y2="138" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="299" y="142" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
+    <line x1="299" y1="128" x2="309" y2="128" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- Q feedback junction + path to Gate B bottom input -->
+    <circle cx="265" cy="47" r="4" fill="#1e2d40"/>
+    <polyline points="265,47 325,47 325,57 115,57" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Q-bar feedback junction + path to Gate A bottom input -->
+    <circle cx="265" cy="138" r="4" fill="#1e2d40"/>
+    <polyline points="265,138 343,138 343,148 115,148" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Active HIGH badge -->
+    <rect x="10" y="167" width="120" height="17" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
+    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
+  </svg>`;
+}
+
+function _nandSRSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- Gate A (NAND) -->
+    <rect x="115" y="25" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
+    <text x="149" y="52" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">&amp;</text>
+    <circle cx="189" cy="47" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- Gate B (NAND) -->
+    <rect x="115" y="116" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
+    <text x="149" y="143" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">&amp;</text>
+    <circle cx="189" cy="138" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- Active-low bubble on S̄ input -->
+    <line x1="20" y1="37" x2="104" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
+    <circle cx="110" cy="37" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- S-bar label -->
+    <text x="6" y="41" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">S</text>
+    <line x1="6" y1="28" x2="14" y2="28" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Active-low bubble on R̄ input -->
+    <line x1="20" y1="128" x2="104" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
+    <circle cx="110" cy="128" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+    <!-- R-bar label -->
+    <text x="6" y="132" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">R</text>
+    <line x1="6" y1="119" x2="14" y2="119" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Q output -->
+    <line x1="194" y1="47" x2="295" y2="47" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="299" y="51" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
+    <!-- Q-bar output -->
+    <line x1="194" y1="138" x2="295" y2="138" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="299" y="142" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
+    <line x1="299" y1="128" x2="309" y2="128" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- Q feedback -->
+    <circle cx="265" cy="47" r="4" fill="#1e2d40"/>
+    <polyline points="265,47 325,47 325,57 115,57" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Q-bar feedback -->
+    <circle cx="265" cy="138" r="4" fill="#1e2d40"/>
+    <polyline points="265,138 343,138 343,148 115,148" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- Active LOW badge -->
+    <rect x="10" y="167" width="120" height="17" fill="#fee2e2" stroke="#dc2626" stroke-width="1" rx="3"/>
+    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#dc2626">Active LOW inputs</text>
+  </svg>`;
+}
+
+function _nandJKSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- JK block -->
+    <rect x="110" y="30" width="140" height="115" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="6"/>
+    <text x="180" y="75" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#1e2d40">JK</text>
+    <text x="180" y="93" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e2d40">FLIP-FLOP</text>
+    <text x="180" y="112" text-anchor="middle" font-family="monospace" font-size="10" fill="#6b7280">(NAND gates)</text>
+    <!-- J input -->
+    <line x1="20" y1="55" x2="110" y2="55" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="6" y="59" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">J</text>
+    <!-- CLK input -->
+    <line x1="20" y1="87" x2="110" y2="87" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="2" y="91" font-family="monospace" font-size="11" font-weight="bold" fill="#1e2d40">CLK</text>
+    <!-- K input -->
+    <line x1="20" y1="119" x2="110" y2="119" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="6" y="123" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">K</text>
+    <!-- Q output -->
+    <line x1="250" y1="60" x2="330" y2="60" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="334" y="64" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
+    <!-- Q-bar output -->
+    <line x1="250" y1="114" x2="330" y2="114" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="334" y="118" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
+    <line x1="334" y1="104" x2="344" y2="104" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- Pin labels inside block -->
+    <text x="115" y="59" font-family="monospace" font-size="10" fill="#6b7280">J</text>
+    <text x="115" y="91" font-family="monospace" font-size="10" fill="#6b7280">CK</text>
+    <text x="115" y="123" font-family="monospace" font-size="10" fill="#6b7280">K</text>
+    <text x="242" y="64" text-anchor="end" font-family="monospace" font-size="10" fill="#6b7280">Q</text>
+    <text x="242" y="118" text-anchor="end" font-family="monospace" font-size="10" fill="#6b7280">Q̄</text>
+    <!-- Active HIGH badge -->
+    <rect x="10" y="167" width="120" height="17" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
+    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
+  </svg>`;
+}
+
+const FlipFlopRef = {
+  _tab: 'nor',
+
+  render(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = `
+      <div class="ff-ref-panel">
+        <div class="ff-ref-tabs">
+          <button class="ff-ref-tab ${this._tab === 'nor' ? 'active' : ''}" onclick="FlipFlopRef.setTab('nor')">SR — Active HIGH (NOR)</button>
+          <button class="ff-ref-tab ${this._tab === 'nand' ? 'active' : ''}" onclick="FlipFlopRef.setTab('nand')">S̄R̄ — Active LOW (NAND)</button>
+          <button class="ff-ref-tab ${this._tab === 'jk' ? 'active' : ''}" onclick="FlipFlopRef.setTab('jk')">JK — NAND</button>
+        </div>
+        <div id="ff-ref-content">${this._content()}</div>
+      </div>`;
+  },
+
+  setTab(tab) {
+    this._tab = tab;
+    const el = document.getElementById('ff-ref-content');
+    if (el) el.innerHTML = this._content();
+    document.querySelectorAll('.ff-ref-tab').forEach(b =>
+      b.classList.toggle('active', b.textContent.includes(tab === 'nor' ? 'Active HIGH' : tab === 'nand' ? 'Active LOW' : 'JK'))
+    );
+  },
+
+  _content() {
+    if (this._tab === 'nor') return this._norContent();
+    if (this._tab === 'nand') return this._nandContent();
+    return this._jkContent();
+  },
+
+  _norContent() {
+    return `
+      <div class="ff-circuit-layout">
+        <div class="ff-circuit-diagram">
+          ${_norSRSvg()}
+          <p class="ff-circuit-note">S = Set input (active when HIGH = 1)<br>R = Reset input (active when HIGH = 1)</p>
+        </div>
+        <div class="ff-circuit-info">
+          <div class="ff-active-badge high">Active HIGH — S=1 sets, R=1 resets</div>
+          <table class="ff-ref-table" style="margin-top:10px;">
+            <thead><tr><th>S</th><th>R</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
+              <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
+              <tr class="ff-ref-forbidden"><td>1</td><td>1</td><td>X</td><td>INVALID</td></tr>
+            </tbody>
+          </table>
+          <p class="ff-circuit-note" style="margin-top:8px;"><strong>S=R=1 is the forbidden state.</strong> Both outputs would be driven to 1 simultaneously, violating the rule that Q and <span class="ol">Q</span> must always be complements.</p>
+        </div>
+      </div>`;
+  },
+
+  _nandContent() {
+    return `
+      <div class="ff-circuit-layout">
+        <div class="ff-circuit-diagram">
+          ${_nandSRSvg()}
+          <p class="ff-circuit-note">S̄ = Set input (active when LOW = 0)<br>R̄ = Reset input (active when LOW = 0)</p>
+        </div>
+        <div class="ff-circuit-info">
+          <div class="ff-active-badge low">Active LOW — S̄=0 sets, R̄=0 resets</div>
+          <table class="ff-ref-table" style="margin-top:10px;">
+            <thead><tr><th>S̄</th><th>R̄</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>1</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>1</td><td>0</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
+              <tr><td>0</td><td>1</td><td class="ff-ref-one">1</td><td>Set</td></tr>
+              <tr class="ff-ref-forbidden"><td>0</td><td>0</td><td>X</td><td>INVALID</td></tr>
+            </tbody>
+          </table>
+          <p class="ff-circuit-note" style="margin-top:8px;"><strong>Logic is inverted</strong> compared to the NOR SR. Inputs are active LOW — pulling an input LOW activates it. S̄=R̄=0 is the forbidden state.</p>
+        </div>
+      </div>`;
+  },
+
+  _jkContent() {
+    return `
+      <div class="ff-circuit-layout">
+        <div class="ff-circuit-diagram">
+          ${_nandJKSvg()}
+          <p class="ff-circuit-note">J = Set input · K = Reset input<br>CLK = Clock (edge-triggered)</p>
+        </div>
+        <div class="ff-circuit-info">
+          <div class="ff-active-badge high">Active HIGH — J=1 sets, K=1 resets</div>
+          <table class="ff-ref-table" style="margin-top:10px;">
+            <thead><tr><th>J</th><th>K</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
+              <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
+              <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span>(n)</td><td>Toggle</td></tr>
+            </tbody>
+          </table>
+          <p class="ff-circuit-note" style="margin-top:8px;"><strong>No forbidden state.</strong> J=K=1 triggers a <em>toggle</em> — output flips to its complement. This is the key advantage of JK over SR. The NAND implementation uses 4+ gates and a clock input to achieve this.</p>
+        </div>
+      </div>`;
+  },
+};
+
+// ── Teacher Flip-Flop Demo Tool ──
+const FlipFlopDemo = {
+  _type: 'nor-sr',
+  _in1: 0,
+  _in2: 0,
+  _qState: 0,   // stored Q
+
+  render() {
+    const card = document.getElementById('ff-demo-card');
+    if (!card) return;
+    card.innerHTML = `
+      <h3>🎛️ Flip-Flop Simulator</h3>
+      <p class="teacher-card-desc">Interactive demo for classroom display. Select a flip-flop type, toggle the inputs, then clock a pulse to update the stored state.</p>
+      <div class="ff-demo-type-row">
+        ${['nor-sr','nand-sr','jk'].map(t => `
+          <button class="ff-demo-type-btn ${this._type === t ? 'active' : ''}" onclick="FlipFlopDemo.setType('${t}')">
+            ${t === 'nor-sr' ? 'SR Active HIGH (NOR)' : t === 'nand-sr' ? 'S̄R̄ Active LOW (NAND)' : 'JK Active HIGH (NAND)'}
+          </button>`).join('')}
+      </div>
+      <div id="ff-demo-body">${this._body()}</div>`;
+  },
+
+  setType(t) {
+    this._type = t;
+    this._in1 = 0; this._in2 = 0; this._qState = 0;
+    const card = document.getElementById('ff-demo-card');
+    if (card) {
+      card.querySelectorAll('.ff-demo-type-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(t === 'nor-sr' ? 'Active HIGH (NOR)' : t === 'nand-sr' ? 'Active LOW' : 'JK')));
+    }
+    const body = document.getElementById('ff-demo-body');
+    if (body) body.innerHTML = this._body();
+  },
+
+  _compute() {
+    const { _type, _in1, _in2, _qState } = this;
+    if (_type === 'nor-sr') {
+      if (_in1 === 1 && _in2 === 1) return 'X';
+      if (_in1 === 1) return 1;
+      if (_in2 === 1) return 0;
+      return _qState;
+    }
+    if (_type === 'nand-sr') {
+      if (_in1 === 0 && _in2 === 0) return 'X';
+      if (_in1 === 0) return 1;
+      if (_in2 === 0) return 0;
+      return _qState;
+    }
+    // JK
+    if (_in1 === 1 && _in2 === 1) return _qState === 1 ? 0 : 1;
+    if (_in1 === 1) return 1;
+    if (_in2 === 1) return 0;
+    return _qState;
+  },
+
+  toggleIn1() {
+    this._in1 = this._in1 === 0 ? 1 : 0;
+    const body = document.getElementById('ff-demo-body');
+    if (body) body.innerHTML = this._body();
+  },
+  toggleIn2() {
+    this._in2 = this._in2 === 0 ? 1 : 0;
+    const body = document.getElementById('ff-demo-body');
+    if (body) body.innerHTML = this._body();
+  },
+  clockPulse() {
+    const next = this._compute();
+    if (next !== 'X') this._qState = next;
+    const body = document.getElementById('ff-demo-body');
+    if (body) body.innerHTML = this._body();
+  },
+
+  _body() {
+    const { _type, _in1, _in2, _qState } = this;
+    const isSR = _type !== 'jk';
+    const in1Label = _type === 'nand-sr' ? 'S̄' : (isSR ? 'S' : 'J');
+    const in2Label = _type === 'nand-sr' ? 'R̄' : (isSR ? 'R' : 'K');
+    const next = this._compute();
+    const isInvalid = next === 'X';
+    const qBarDisplay = _qState === 1 ? 0 : 1;
+
+    const rows = isSR
+      ? (_type === 'nor-sr'
+        ? [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','X','INVALID']]
+        : [['1','1','Q(n)','No change'],['1','0','0','Reset'],['0','1','1','Set'],['0','0','X','INVALID']])
+      : [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','¬Q(n)','Toggle']];
+
+    const tableRows = rows.map(([a, b, q, action]) => {
+      const isActive = String(_in1) === a && String(_in2) === b;
+      return `<tr class="${isActive ? 'ff-demo-row-active' : ''}"><td>${a}</td><td>${b}</td><td>${q}</td><td>${action}</td></tr>`;
+    }).join('');
+
+    return `
+      <div class="ff-demo-layout">
+        <div class="ff-demo-controls">
+          <div class="ff-demo-io-grid">
+            <div class="ff-demo-io-label">${in1Label}</div>
+            <button class="ff-demo-input-btn ${_in1 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn1()">${_in1}</button>
+            <div class="ff-demo-io-label">${in2Label}</div>
+            <button class="ff-demo-input-btn ${_in2 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn2()">${_in2}</button>
+            <div class="ff-demo-io-label" style="margin-top:12px;">Q(n)</div>
+            <div class="ff-demo-state-val">${_qState}</div>
+            <div class="ff-demo-io-label">Q(n+1)</div>
+            <div class="ff-demo-state-val" style="color:${isInvalid ? '#dc2626' : '#1e2d40'}">${next}</div>
+            <div class="ff-demo-io-label"><span class="ol">Q</span>(n)</div>
+            <div class="ff-demo-state-val" style="color:#6b7280;">${qBarDisplay}</div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="FlipFlopDemo.clockPulse()"
+            ${isInvalid ? 'disabled title="Invalid state — cannot clock"' : ''}>
+            ⏱ Clock Pulse
+          </button>
+          ${isInvalid ? '<div style="color:#dc2626;font-size:0.82rem;margin-top:6px;font-weight:600;">⚠ INVALID state — do not apply</div>' : ''}
+        </div>
+        <div>
+          <table class="ff-ref-table">
+            <thead><tr><th>${in1Label}</th><th>${in2Label}</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  },
+};
+
+// ══════════════════════════════════════════
 //  FLIP-FLOPS
 // ══════════════════════════════════════════
 
@@ -3009,7 +3349,10 @@ const FlipFlop = {
         <div class="exercise-title">${ex.title}</div>
       </div>
       ${ex.type.includes('truth_table') ? this._renderTruthTable(ex, isDone) : this._renderTiming(ex, isDone)}
-      ${navBar(true)}`;
+      ${navBar(true)}
+      <div id="ff-ref-area" style="margin-top:24px;"></div>`;
+    FlipFlopRef._tab = this._isSR(ex.type) ? 'nor' : 'jk';
+    FlipFlopRef.render('ff-ref-area');
   },
 
   // ── Truth Table Exercise ──
