@@ -11,6 +11,7 @@
 // ── Data Store ──
 let EXERCISES = [];
 let KMAP_EXERCISES = [];
+let FLIPFLOP_EXERCISES = [];
 let currentUser = null;
 let currentRole = 'student';
 let currentExerciseIndex = 0;
@@ -374,6 +375,12 @@ async function loadExercises() {
   } catch (e) {
     console.error('Failed to load K-Map exercises:', e);
   }
+  try {
+    const resp = await fetch('scripts/flipflop-exercises.json');
+    FLIPFLOP_EXERCISES = (await resp.json()).exercises;
+  } catch (e) {
+    console.error('Failed to load flip-flop exercises:', e);
+  }
 }
 
 // ── Firebase auth state listener — handles login, logout, and page reload ──
@@ -587,6 +594,7 @@ const App = {
     if (screen === 'learn') Learn.render();
     if (screen === 'practice') Practice.init();
     if (screen === 'kmap') KMap.init();
+    if (screen === 'flipflops') FlipFlop.init();
     if (screen === 'teacher') Teacher.render().catch(e => console.error('Teacher render error:', e));
 
     document.getElementById('nav-links').classList.remove('mobile-open');
@@ -2939,6 +2947,253 @@ const KMap = {
   }
 };
 
+
+// ══════════════════════════════════════════
+//  FLIP-FLOPS
+// ══════════════════════════════════════════
+
+const FlipFlop = {
+  exercises: [],
+  currentIndex: 0,
+  _answers: [],   // student's selected answer per row
+
+  async init() {
+    if (this.exercises.length === 0) {
+      try {
+        const resp = await fetch('scripts/flipflop-exercises.json');
+        this.exercises = (await resp.json()).exercises;
+      } catch {
+        document.getElementById('ff-exercise-area').innerHTML =
+          '<div class="empty-state"><p>Could not load flip-flop exercises.</p></div>';
+        return;
+      }
+    }
+    if (this.currentIndex >= this.exercises.length) this.currentIndex = 0;
+    this._resetState();
+    this._render();
+  },
+
+  _resetState() { this._answers = []; },
+
+  _ex() { return this.exercises[this.currentIndex]; },
+
+  prev() {
+    if (this.currentIndex > 0) { this.currentIndex--; this._resetState(); this._render(); }
+  },
+
+  next() {
+    if (this.currentIndex < this.exercises.length - 1) { this.currentIndex++; this._resetState(); this._render(); }
+  },
+
+  _isSR(type) { return type.startsWith('sr'); },
+
+  _render() {
+    const ex = this._ex();
+    const area = document.getElementById('ff-exercise-area');
+    const diffLabel = ex.difficulty === 1 ? 'Easy' : ex.difficulty === 2 ? 'Medium' : 'Hard';
+    const typeLabel = this._isSR(ex.type) ? 'SR Flip-Flop' : 'JK Flip-Flop';
+    const isDone = getProgress(currentUser?.uid)?.exercises[`ff_${ex.id}`]?.status === 'correct';
+
+    const navBar = (mt) => `
+      <div class="ff-nav" ${mt ? 'style="margin-top:16px;"' : ''}>
+        <button class="btn btn-secondary btn-sm" onclick="FlipFlop.prev()" ${this.currentIndex === 0 ? 'disabled' : ''}>← Previous</button>
+        <span class="kmap-counter">${this.currentIndex + 1} of ${this.exercises.length} &nbsp;·&nbsp;
+          <span class="exercise-difficulty ${diffLabel.toLowerCase()}">${diffLabel}</span>
+          &nbsp;·&nbsp;<span style="color:var(--text-muted);font-size:0.8rem;">${typeLabel}</span></span>
+        <button class="btn btn-primary btn-sm" onclick="FlipFlop.next()" ${this.currentIndex >= this.exercises.length - 1 ? 'disabled' : ''}>Next →</button>
+      </div>`;
+
+    area.innerHTML = `
+      ${navBar(false)}
+      <div class="exercise-card" style="margin-bottom:16px;">
+        <div class="exercise-title">${ex.title}</div>
+      </div>
+      ${ex.type.includes('truth_table') ? this._renderTruthTable(ex, isDone) : this._renderTiming(ex, isDone)}
+      ${navBar(true)}`;
+  },
+
+  // ── Truth Table Exercise ──
+  _renderTruthTable(ex, isDone) {
+    const isSR = this._isSR(ex.type);
+    const h1 = isSR ? 'S' : 'J';
+    const h2 = isSR ? 'R' : 'K';
+
+    const rows = ex.rows.map((row, i) => `
+      <tr>
+        <td>${row.in1}</td>
+        <td>${row.in2}</td>
+        <td>${isDone ? this._cellDone(row.answer) : this._cellButtons(i, isSR, false)}</td>
+      </tr>`).join('');
+
+    const wrongBanner = `<div id="ff-feedback"></div>`;
+    const doneBanner = `
+      <div class="kmap-complete-banner" style="margin-top:14px;"><span>✓ All correct!</span></div>
+      <div class="ff-explanation"><strong>Explanation:</strong> ${ex.explanation}</div>`;
+    const actionArea = isDone ? doneBanner : `
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="FlipFlop.check()">Check Answers</button>
+      ${wrongBanner}
+      <div class="ff-hint"><strong>Hint:</strong> ${ex.hint}</div>`;
+
+    return `
+      <div class="kmap-step ${isDone ? 'step-complete' : ''}">
+        <div class="ff-exercise-layout">
+          <div class="ff-table-side">
+            <table class="ff-table">
+              <thead><tr><th>${h1}</th><th>${h2}</th><th>Q(n+1)</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="ff-ref-side">
+            ${this._renderRefTable(isSR)}
+          </div>
+        </div>
+        ${actionArea}
+      </div>`;
+  },
+
+  // ── Timing Diagram Exercise ──
+  _renderTiming(ex, isDone) {
+    const isSR = this._isSR(ex.type);
+    const h1 = isSR ? 'S' : 'J';
+    const h2 = isSR ? 'R' : 'K';
+
+    let prevQ = ex.initialQ;
+    const rows = ex.pulses.map((pulse, i) => {
+      const qn = prevQ;
+      prevQ = pulse.answer === 'X' ? 'X' : parseInt(pulse.answer);
+      const qnDisplay = qn === 'X' ? '<span style="color:var(--error);font-weight:700;">X</span>' : qn;
+      return `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${pulse.in1}</td>
+          <td>${pulse.in2}</td>
+          <td>${qnDisplay}</td>
+          <td>${isDone ? this._cellDone(pulse.answer) : this._cellButtons(i, isSR, true)}</td>
+        </tr>`;
+    }).join('');
+
+    const doneBanner = `
+      <div class="kmap-complete-banner" style="margin-top:14px;"><span>✓ All correct!</span></div>
+      <div class="ff-explanation"><strong>Explanation:</strong> ${ex.explanation}</div>`;
+    const actionArea = isDone ? doneBanner : `
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="FlipFlop.check()">Check Answers</button>
+      <div id="ff-feedback"></div>
+      <div class="ff-hint"><strong>Hint:</strong> ${ex.hint}</div>`;
+
+    return `
+      <div class="kmap-step ${isDone ? 'step-complete' : ''}">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">
+          Starting state: Q = <strong>${ex.initialQ}</strong>. For each clock pulse, determine Q(n+1).
+        </p>
+        <div class="ff-exercise-layout">
+          <div class="ff-table-side">
+            <table class="ff-table">
+              <thead><tr><th>Pulse</th><th>${h1}</th><th>${h2}</th><th>Q(n)</th><th>Q(n+1)</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="ff-ref-side">
+            ${this._renderRefTable(isSR)}
+          </div>
+        </div>
+        ${actionArea}
+      </div>`;
+  },
+
+  // ── Reference Table ──
+  _renderRefTable(isSR) {
+    if (isSR) {
+      return `
+        <div class="ff-ref-card">
+          <div class="ff-ref-title">SR Flip-Flop Reference</div>
+          <table class="ff-ref-table">
+            <thead><tr><th>S</th><th>R</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
+              <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
+              <tr class="ff-ref-forbidden"><td>1</td><td>1</td><td>X</td><td>INVALID</td></tr>
+            </tbody>
+          </table>
+          <p class="ff-ref-note">S=R=1 is the forbidden state — it must never be applied.</p>
+        </div>`;
+    }
+    return `
+      <div class="ff-ref-card">
+        <div class="ff-ref-title">JK Flip-Flop Reference</div>
+        <table class="ff-ref-table">
+          <thead><tr><th>J</th><th>K</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+            <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
+            <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
+            <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell">¬Q(n)</td><td>Toggle</td></tr>
+          </tbody>
+        </table>
+        <p class="ff-ref-note">¬Q(n) means the output flips to the opposite of its current value.</p>
+      </div>`;
+  },
+
+  // ── Render a completed (read-only) answer cell ──
+  _cellDone(answer) {
+    if (answer === '0') return '<span class="ff-cell-done ff-val-zero">0</span>';
+    if (answer === '1') return '<span class="ff-cell-done ff-val-one">1</span>';
+    if (answer === 'Q') return '<span class="ff-cell-done ff-val-qn">Q(n)</span>';
+    if (answer === '¬Q') return '<span class="ff-cell-done ff-val-toggle">¬Q(n)</span>';
+    if (answer === 'X') return '<span class="ff-cell-done ff-val-invalid">INVALID</span>';
+    return answer;
+  },
+
+  // ── Render an interactive button group for a cell ──
+  _cellButtons(i, isSR, isTiming) {
+    const opts = isTiming
+      ? (isSR ? [['0','0'],['1','1'],['X','X']] : [['0','0'],['1','1']])
+      : (isSR ? [['0','0'],['1','1'],['Q','Q(n)'],['X','X']] : [['0','0'],['1','1'],['Q','Q(n)'],['¬Q','¬Q(n)']]);
+    const btns = opts.map(([val, label]) => {
+      const cls = `ff-btn ff-btn-${val === '0' ? 'zero' : val === '1' ? 'one' : val === 'X' ? 'invalid' : val === 'Q' ? 'qn' : 'toggle'}`;
+      return `<button class="${cls}" data-row="${i}" data-val="${val}" onclick="FlipFlop._setAnswer(${i},'${val}')">${label}</button>`;
+    }).join('');
+    return `<div class="ff-btn-group" data-row="${i}">${btns}</div>`;
+  },
+
+  // ── Update a cell's selection without full re-render ──
+  _setAnswer(i, val) {
+    this._answers[i] = val;
+    const group = document.querySelector(`.ff-btn-group[data-row="${i}"]`);
+    if (!group) return;
+    group.querySelectorAll('.ff-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.val === val);
+    });
+    group.classList.remove('ff-cell-wrong');
+  },
+
+  // ── Check all answers ──
+  check() {
+    const ex = this._ex();
+    const correct = ex.type.includes('truth_table') ? ex.rows.map(r => r.answer) : ex.pulses.map(p => p.answer);
+    const fb = document.getElementById('ff-feedback');
+
+    if (correct.some((_, i) => !this._answers[i])) {
+      if (fb) fb.innerHTML = '<div class="kmap-feedback incorrect">Fill in all cells before checking.</div>';
+      return;
+    }
+
+    let allCorrect = true;
+    correct.forEach((ans, i) => {
+      const wrong = this._answers[i] !== ans;
+      if (wrong) allCorrect = false;
+      const group = document.querySelector(`.ff-btn-group[data-row="${i}"]`);
+      if (group) group.classList.toggle('ff-cell-wrong', wrong);
+    });
+
+    if (allCorrect) {
+      saveProgress(`ff_${ex.id}`, { status: 'correct' });
+      this._render();
+    } else {
+      if (fb) fb.innerHTML = '<div class="kmap-feedback incorrect">Some answers are incorrect — wrong cells are highlighted. Check the reference table and try again.</div>';
+    }
+  },
+};
 
 // ── Toast Helper ──
 function showToast(message, type = 'info') {
