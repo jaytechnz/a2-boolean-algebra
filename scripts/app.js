@@ -3140,9 +3140,9 @@ const FlipFlopRef = {
         <div class="ff-circuit-info">
           <div class="ff-active-badge high">Active HIGH — S=1 sets, R=1 resets</div>
           <table class="ff-ref-table" style="margin-top:10px;">
-            <thead><tr><th>S</th><th>R</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <thead><tr><th>S</th><th>R</th><th>Q</th><th>Action</th></tr></thead>
             <tbody>
-              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q</td><td>No change</td></tr>
               <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
               <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
               <tr class="ff-ref-forbidden"><td>1</td><td>1</td><td>X</td><td>INVALID</td></tr>
@@ -3163,9 +3163,9 @@ const FlipFlopRef = {
         <div class="ff-circuit-info">
           <div class="ff-active-badge low">Active LOW — S̄=0 sets, R̄=0 resets</div>
           <table class="ff-ref-table" style="margin-top:10px;">
-            <thead><tr><th>S̄</th><th>R̄</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <thead><tr><th>S̄</th><th>R̄</th><th>Q</th><th>Action</th></tr></thead>
             <tbody>
-              <tr><td>1</td><td>1</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>1</td><td>1</td><td class="ff-ref-qn">Q</td><td>No change</td></tr>
               <tr><td>1</td><td>0</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
               <tr><td>0</td><td>1</td><td class="ff-ref-one">1</td><td>Set</td></tr>
               <tr class="ff-ref-forbidden"><td>0</td><td>0</td><td>X</td><td>INVALID</td></tr>
@@ -3186,12 +3186,12 @@ const FlipFlopRef = {
         <div class="ff-circuit-info">
           <div class="ff-active-badge high">Active HIGH — J=1 sets, K=1 resets</div>
           <table class="ff-ref-table" style="margin-top:10px;">
-            <thead><tr><th>J</th><th>K</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <thead><tr><th>J</th><th>K</th><th>Q</th><th>Action</th></tr></thead>
             <tbody>
-              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q</td><td>No change</td></tr>
               <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
               <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
-              <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span>(n)</td><td>Toggle</td></tr>
+              <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span></td><td>Toggle</td></tr>
             </tbody>
           </table>
           <p class="ff-circuit-note" style="margin-top:8px;"><strong>No forbidden state.</strong> J=K=1 triggers a <em>toggle</em> — output flips to its complement. This is the key advantage of JK over SR. The NAND implementation uses 4+ gates and a clock input to achieve this.</p>
@@ -3282,9 +3282,9 @@ const FlipFlopDemo = {
 
     const rows = isSR
       ? (_type === 'nor-sr'
-        ? [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','X','INVALID']]
-        : [['1','1','Q(n)','No change'],['1','0','0','Reset'],['0','1','1','Set'],['0','0','X','INVALID']])
-      : [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','<span class="ol">Q</span>(n)','Toggle']];
+        ? [['0','0','Q','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','X','INVALID']]
+        : [['1','1','Q','No change'],['1','0','0','Reset'],['0','1','1','Set'],['0','0','X','INVALID']])
+      : [['0','0','Q','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','<span class="ol">Q</span>','Toggle']];
 
     const tableRows = rows.map(([a, b, q, action]) => {
       const isActive = String(_in1) === a && String(_in2) === b;
@@ -3299,9 +3299,9 @@ const FlipFlopDemo = {
             <button class="ff-demo-input-btn ${_in1 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn1()">${_in1}</button>
             <div class="ff-demo-io-label">${in2Label}</div>
             <button class="ff-demo-input-btn ${_in2 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn2()">${_in2}</button>
-            <div class="ff-demo-io-label" style="margin-top:12px;">Q(n)</div>
+            <div class="ff-demo-io-label" style="margin-top:12px;">Q</div>
             <div class="ff-demo-state-val">${_qState}</div>
-            <div class="ff-demo-io-label">Q(n+1)</div>
+            <div class="ff-demo-io-label">next Q</div>
             <div class="ff-demo-state-val" style="color:${isInvalid ? '#dc2626' : '#1e2d40'}">${next}</div>
             <div class="ff-demo-io-label"><span class="ol">Q</span>(n)</div>
             <div class="ff-demo-state-val" style="color:#6b7280;">${qBarDisplay}</div>
@@ -3314,7 +3314,7 @@ const FlipFlopDemo = {
         </div>
         <div>
           <table class="ff-ref-table">
-            <thead><tr><th>${in1Label}</th><th>${in2Label}</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <thead><tr><th>${in1Label}</th><th>${in2Label}</th><th>Q</th><th>Action</th></tr></thead>
             <tbody>${tableRows}</tbody>
           </table>
         </div>
@@ -3416,7 +3416,7 @@ const FlipFlop = {
         <div class="ff-exercise-layout">
           <div class="ff-table-side">
             <table class="ff-table">
-              <thead><tr><th>${h1}</th><th>${h2}</th><th>Q(n+1)</th></tr></thead>
+              <thead><tr><th>${h1}</th><th>${h2}</th><th>Q</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -3434,20 +3434,13 @@ const FlipFlop = {
     const h1 = isSR ? 'S' : 'J';
     const h2 = isSR ? 'R' : 'K';
 
-    let prevQ = ex.initialQ;
-    const rows = ex.pulses.map((pulse, i) => {
-      const qn = prevQ;
-      prevQ = pulse.answer === 'X' ? 'X' : parseInt(pulse.answer);
-      const qnDisplay = qn === 'X' ? '<span style="color:var(--error);font-weight:700;">X</span>' : qn;
-      return `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${pulse.in1}</td>
-          <td>${pulse.in2}</td>
-          <td>${qnDisplay}</td>
-          <td>${isDone ? this._cellDone(pulse.answer) : this._cellButtons(i, isSR, true)}</td>
-        </tr>`;
-    }).join('');
+    const rows = ex.pulses.map((pulse, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${pulse.in1}</td>
+        <td>${pulse.in2}</td>
+        <td>${isDone ? this._cellDone(pulse.answer) : this._cellButtons(i, isSR, true)}</td>
+      </tr>`).join('');
 
     const doneBanner = `
       <div class="kmap-complete-banner" style="margin-top:14px;"><span>✓ All correct!</span></div>
@@ -3460,12 +3453,12 @@ const FlipFlop = {
     return `
       <div class="kmap-step ${isDone ? 'step-complete' : ''}">
         <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">
-          Starting state: Q = <strong>${ex.initialQ}</strong>. For each clock pulse, determine Q(n+1).
+          Starting state: Q = <strong>${ex.initialQ}</strong>. For each clock pulse, determine Q after the pulse.
         </p>
         <div class="ff-exercise-layout">
           <div class="ff-table-side">
             <table class="ff-table">
-              <thead><tr><th>Pulse</th><th>${h1}</th><th>${h2}</th><th>Q(n)</th><th>Q(n+1)</th></tr></thead>
+              <thead><tr><th>Pulse</th><th>${h1}</th><th>${h2}</th><th>Q</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -3484,9 +3477,9 @@ const FlipFlop = {
         <div class="ff-ref-card">
           <div class="ff-ref-title">SR Flip-Flop Reference</div>
           <table class="ff-ref-table">
-            <thead><tr><th>S</th><th>R</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+            <thead><tr><th>S</th><th>R</th><th>Q</th><th>Action</th></tr></thead>
             <tbody>
-              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+              <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q</td><td>No change</td></tr>
               <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
               <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
               <tr class="ff-ref-forbidden"><td>1</td><td>1</td><td>X</td><td>INVALID</td></tr>
@@ -3499,15 +3492,15 @@ const FlipFlop = {
       <div class="ff-ref-card">
         <div class="ff-ref-title">JK Flip-Flop Reference</div>
         <table class="ff-ref-table">
-          <thead><tr><th>J</th><th>K</th><th>Q(n+1)</th><th>Action</th></tr></thead>
+          <thead><tr><th>J</th><th>K</th><th>Q</th><th>Action</th></tr></thead>
           <tbody>
-            <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
+            <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q</td><td>No change</td></tr>
             <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
             <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
-            <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span>(n)</td><td>Toggle</td></tr>
+            <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span></td><td>Toggle</td></tr>
           </tbody>
         </table>
-        <p class="ff-ref-note"><span class="ol">Q</span>(n) means the output flips to the opposite of its current value.</p>
+        <p class="ff-ref-note"><span class="ol">Q</span> means the output flips to the opposite of its current value.</p>
       </div>`;
   },
 
@@ -3515,8 +3508,8 @@ const FlipFlop = {
   _cellDone(answer) {
     if (answer === '0') return '<span class="ff-cell-done ff-val-zero">0</span>';
     if (answer === '1') return '<span class="ff-cell-done ff-val-one">1</span>';
-    if (answer === 'Q') return '<span class="ff-cell-done ff-val-qn">Q(n)</span>';
-    if (answer === '¬Q') return '<span class="ff-cell-done ff-val-toggle"><span class="ol">Q</span>(n)</span>';
+    if (answer === 'Q') return '<span class="ff-cell-done ff-val-qn">Q</span>';
+    if (answer === '¬Q') return '<span class="ff-cell-done ff-val-toggle"><span class="ol">Q</span></span>';
     if (answer === 'X') return '<span class="ff-cell-done ff-val-invalid">INVALID</span>';
     return answer;
   },
@@ -3525,7 +3518,7 @@ const FlipFlop = {
   _cellButtons(i, isSR, isTiming) {
     const opts = isTiming
       ? (isSR ? [['0','0'],['1','1'],['X','X']] : [['0','0'],['1','1']])
-      : (isSR ? [['0','0'],['1','1'],['Q','Q(n)'],['X','X']] : [['0','0'],['1','1'],['Q','Q(n)'],['¬Q','<span class="ol">Q</span>(n)']]);
+      : (isSR ? [['0','0'],['1','1'],['Q','Q'],['X','X']] : [['0','0'],['1','1'],['Q','Q'],['¬Q','<span class="ol">Q</span>']]);
     const btns = opts.map(([val, label]) => {
       const cls = `ff-btn ff-btn-${val === '0' ? 'zero' : val === '1' ? 'one' : val === 'X' ? 'invalid' : val === 'Q' ? 'qn' : 'toggle'}`;
       return `<button class="${cls}" data-row="${i}" data-val="${val}" onclick="FlipFlop._setAnswer(${i},'${val}')">${label}</button>`;

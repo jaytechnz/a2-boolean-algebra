@@ -57,7 +57,7 @@
         { "in1": 0, "in2": 0, "answer": "0" },
         { "in1": 1, "in2": 0, "answer": "1" }
       ],
-      "hint": "Work through each clock pulse in order. J=1, K=0 sets Q to 1. K=1, J=0 resets Q to 0. J=K=0 leaves Q unchanged. Track how Q(n) changes after each pulse.",
+      "hint": "Work through each clock pulse in order. J=1, K=0 sets Q to 1. K=1, J=0 resets Q to 0. J=K=0 leaves Q unchanged. Track how Q changes after each pulse.",
       "explanation": "Pulse 1 (J=1,K=0): Set → Q=1. Pulse 2 (J=0,K=0): No change → Q stays 1. Pulse 3 (J=0,K=1): Reset → Q=0. Pulse 4 (J=0,K=0): No change → Q stays 0. Pulse 5 (J=1,K=0): Set → Q=1."
     },
     {
@@ -92,7 +92,7 @@
         { "in1": 0, "in2": 0, "answer": "0" },
         { "in1": 1, "in2": 1, "answer": "1" }
       ],
-      "hint": "When J=K=1, the output toggles — it flips to the opposite of its current value. Keep careful track of Q(n) before each toggle pulse.",
+      "hint": "When J=K=1, the output toggles — it flips to the opposite of its current value. Keep careful track of Q before each toggle pulse.",
       "explanation": "Pulse 1 (J=1,K=0): Set → Q=1. Pulse 2 (J=K=1): Toggle from 1 → Q=0. Pulse 3 (J=K=1): Toggle from 0 → Q=1. Pulse 4 (J=0,K=1): Reset → Q=0. Pulse 5 (J=K=0): No change → Q=0. Pulse 6 (J=K=1): Toggle from 0 → Q=1. The toggle state is what makes the JK flip-flop more versatile than SR."
     },
     {
@@ -111,7 +111,7 @@
         { "in1": 0, "in2": 0, "answer": "1" },
         { "in1": 1, "in2": 1, "answer": "X" }
       ],
-      "hint": "Starting state is Q=1. Carefully carry each Q(n+1) forward as the Q(n) for the next pulse. Remember the forbidden state rule for the final pulse.",
+      "hint": "Starting state is Q=1. Carefully carry each output Q forward as the input for the next pulse. Remember the forbidden state rule for the final pulse.",
       "explanation": "Starting Q=1. P1 (R=1): Reset → 0. P2 (S=R=0): No change → 0. P3 (S=1): Set → 1. P4 (S=R=0): No change → 1. P5 (R=1): Reset → 0. P6 (S=1): Set → 1. P7 (S=R=0): No change → 1. P8 (S=R=1): Forbidden/Invalid."
     },
     {
