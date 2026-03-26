@@ -1,0 +1,137 @@
+{
+  "exercises": [
+    {
+      "id": 1,
+      "type": "sr_truth_table",
+      "title": "SR Flip-Flop — Truth Table",
+      "difficulty": 1,
+      "rows": [
+        { "in1": 0, "in2": 0, "answer": "Q" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "X" }
+      ],
+      "hint": "Work through each combination: what happens when neither input is active? What does R do? What does S do? What happens if both S and R are 1 simultaneously?",
+      "explanation": "S=R=0: no input is active — Q holds its current value (no change). R=1: the flip-flop is Reset — Q is forced to 0 regardless of its current state. S=1: the flip-flop is Set — Q is forced to 1. S=R=1 is the forbidden (invalid) state — both outputs would try to be 1 simultaneously, which violates the rule that Q and Q' must be complements."
+    },
+    {
+      "id": 2,
+      "type": "jk_truth_table",
+      "title": "JK Flip-Flop — Truth Table",
+      "difficulty": 1,
+      "rows": [
+        { "in1": 0, "in2": 0, "answer": "Q" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "¬Q" }
+      ],
+      "hint": "J=K=0 and J=0, K=1 and J=1, K=0 behave identically to the SR flip-flop. The key difference is when both inputs are 1 — the JK resolves this with a unique behaviour. What does the output do?",
+      "explanation": "J=K=0: no change — Q holds its current value. K=1: Reset — Q goes to 0. J=1: Set — Q goes to 1. J=K=1: Toggle — the output flips to its complement (if Q was 0 it becomes 1, and if Q was 1 it becomes 0). The JK flip-flop eliminates the forbidden state of the SR by defining J=K=1 as toggle."
+    },
+    {
+      "id": 3,
+      "type": "sr_timing",
+      "title": "SR Flip-Flop — Timing Diagram",
+      "difficulty": 1,
+      "initialQ": 0,
+      "pulses": [
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 0, "in2": 0, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" }
+      ],
+      "hint": "Work through each clock pulse in order. After each pulse, the new Q becomes the starting state for the next pulse. S=1 forces Q to 1. R=1 forces Q to 0. S=R=0 leaves Q unchanged.",
+      "explanation": "Pulse 1 (S=1,R=0): Set → Q=1. Pulse 2 (S=0,R=0): No change → Q stays 1. Pulse 3 (S=0,R=1): Reset → Q=0. Pulse 4 (S=0,R=0): No change → Q stays 0. Pulse 5 (S=1,R=0): Set → Q=1."
+    },
+    {
+      "id": 4,
+      "type": "jk_timing",
+      "title": "JK Flip-Flop — Timing Diagram",
+      "difficulty": 1,
+      "initialQ": 0,
+      "pulses": [
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 0, "in2": 0, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" }
+      ],
+      "hint": "Work through each clock pulse in order. J=1, K=0 sets Q to 1. K=1, J=0 resets Q to 0. J=K=0 leaves Q unchanged. Track how Q(n) changes after each pulse.",
+      "explanation": "Pulse 1 (J=1,K=0): Set → Q=1. Pulse 2 (J=0,K=0): No change → Q stays 1. Pulse 3 (J=0,K=1): Reset → Q=0. Pulse 4 (J=0,K=0): No change → Q stays 0. Pulse 5 (J=1,K=0): Set → Q=1."
+    },
+    {
+      "id": 5,
+      "type": "sr_timing",
+      "title": "SR Flip-Flop — Forbidden State",
+      "difficulty": 2,
+      "initialQ": 0,
+      "pulses": [
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 1, "answer": "X" }
+      ],
+      "hint": "Follow the state changes through each pulse. The final pulse has both S and R active simultaneously — what is the output in this case for an SR flip-flop?",
+      "explanation": "Pulses 1–6 follow standard Set/No-change/Reset/Set/No-change/Reset behaviour. Pulse 7 (S=1,R=1) is the forbidden state — both outputs would be driven to 1 at the same time, which is invalid. In an SR flip-flop this input combination must never be applied."
+    },
+    {
+      "id": 6,
+      "type": "jk_timing",
+      "title": "JK Flip-Flop — Toggle",
+      "difficulty": 2,
+      "initialQ": 0,
+      "pulses": [
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 1, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 0, "in2": 0, "answer": "0" },
+        { "in1": 1, "in2": 1, "answer": "1" }
+      ],
+      "hint": "When J=K=1, the output toggles — it flips to the opposite of its current value. Keep careful track of Q(n) before each toggle pulse.",
+      "explanation": "Pulse 1 (J=1,K=0): Set → Q=1. Pulse 2 (J=K=1): Toggle from 1 → Q=0. Pulse 3 (J=K=1): Toggle from 0 → Q=1. Pulse 4 (J=0,K=1): Reset → Q=0. Pulse 5 (J=K=0): No change → Q=0. Pulse 6 (J=K=1): Toggle from 0 → Q=1. The toggle state is what makes the JK flip-flop more versatile than SR."
+    },
+    {
+      "id": 7,
+      "type": "sr_timing",
+      "title": "SR Flip-Flop — Extended Sequence",
+      "difficulty": 3,
+      "initialQ": 1,
+      "pulses": [
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 0, "in2": 0, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "X" }
+      ],
+      "hint": "Starting state is Q=1. Carefully carry each Q(n+1) forward as the Q(n) for the next pulse. Remember the forbidden state rule for the final pulse.",
+      "explanation": "Starting Q=1. P1 (R=1): Reset → 0. P2 (S=R=0): No change → 0. P3 (S=1): Set → 1. P4 (S=R=0): No change → 1. P5 (R=1): Reset → 0. P6 (S=1): Set → 1. P7 (S=R=0): No change → 1. P8 (S=R=1): Forbidden/Invalid."
+    },
+    {
+      "id": 8,
+      "type": "jk_timing",
+      "title": "JK Flip-Flop — Extended Sequence",
+      "difficulty": 3,
+      "initialQ": 1,
+      "pulses": [
+        { "in1": 1, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 1, "answer": "1" },
+        { "in1": 0, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 0, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "0" },
+        { "in1": 0, "in2": 1, "answer": "0" },
+        { "in1": 1, "in2": 1, "answer": "1" },
+        { "in1": 1, "in2": 1, "answer": "0" }
+      ],
+      "hint": "Starting state is Q=1. Multiple consecutive toggle pulses (J=K=1) are the main challenge — each one flips Q to its opposite. Work step by step and carry the output forward carefully.",
+      "explanation": "Starting Q=1. P1 (J=K=1): Toggle 1→0. P2 (J=K=1): Toggle 0→1. P3 (J=K=0): No change → 1. P4 (J=1,K=0): Set → 1 (already 1). P5 (J=K=1): Toggle 1→0. P6 (J=0,K=1): Reset → 0 (already 0). P7 (J=K=1): Toggle 0→1. P8 (J=K=1): Toggle 1→0."
+    }
+  ]
+}
