@@ -2953,114 +2953,148 @@ const KMap = {
 //  FLIP-FLOP CIRCUIT REFERENCE + DEMO
 // ══════════════════════════════════════════
 
+// ANSI OR gate path helper: OR-shaped body at (gx, gy, w=60, h=44)
+function _orGatePath(gx, gy) {
+  const w = 60, h = 44, cx = gx + w * 0.28, tx = gx + w;
+  const cy = gy + h / 2;
+  return `M ${gx},${gy} C ${cx},${gy} ${tx - 7},${gy + 4} ${tx},${cy} C ${tx - 7},${gy + h - 4} ${cx},${gy + h} ${gx},${gy + h} C ${gx + 8},${cy + 11} ${gx + 8},${cy - 11} ${gx},${gy} Z`;
+}
+
+// ANSI AND gate path helper: D-shaped body at (gx, gy, w=60, h=44)
+function _andGatePath(gx, gy) {
+  const w = 60, h = 44, mid = gx + w * 0.5;
+  const cy = gy + h / 2;
+  return `M ${gx},${gy} L ${mid},${gy} Q ${gx + w},${gy} ${gx + w},${cy} Q ${gx + w},${gy + h} ${mid},${gy + h} L ${gx},${gy + h} Z`;
+}
+
+// Shared cross-coupled wiring used by both NOR and NAND SR diagrams
+// gateOutputX = x-coordinate of gate output pin (tip of gate)
+// bubbleR = inversion bubble radius
+function _srWiring(gateOutputX, bubbleR) {
+  const outA = gateOutputX + bubbleR * 2; // Q / Q̄ output node x
+  const yA = 44, yB = 144;                // gate centre y values
+  const inA_bot = 51, inB_bot = 151;      // bottom input y values
+  const qTurnX = 318, qbTurnX = 336;      // feedback turn x positions
+
+  // Crossover arc helper (bows downward at crossing x=qTurnX)
+  // dir: 'lr' = going left→right (cw arc), 'rl' = going right→left (ccw arc)
+  const xover = (y, dir) => dir === 'lr'
+    ? `<line x1="${outA}" y1="${y}" x2="${qTurnX - 4}" y2="${y}" stroke="#1e2d40" stroke-width="1.5"/>` +
+      `<path d="M ${qTurnX - 4},${y} A 4,4 0 0 1 ${qTurnX + 4},${y}" fill="none" stroke="#1e2d40" stroke-width="1.5"/>` +
+      `<line x1="${qTurnX + 4}" y1="${y}" x2="350" y2="${y}" stroke="#1e2d40" stroke-width="1.5"/>`
+    : `<line x1="${qbTurnX}" y1="${y}" x2="${qTurnX + 4}" y2="${y}" stroke="#1e2d40" stroke-width="1.5"/>` +
+      `<path d="M ${qTurnX + 4},${y} A 4,4 0 0 0 ${qTurnX - 4},${y}" fill="none" stroke="#1e2d40" stroke-width="1.5"/>` +
+      `<line x1="${qTurnX - 4}" y1="${y}" x2="125" y2="${y}" stroke="#1e2d40" stroke-width="1.5"/>`;
+
+  return `
+    <!-- Q: full horizontal wire, junction, feedback turn + path -->
+    <line x1="${outA}" y1="${yA}" x2="350" y2="${yA}" stroke="#1e2d40" stroke-width="1.5"/>
+    <circle cx="265" cy="${yA}" r="3.5" fill="#1e2d40"/>
+    <text x="354" y="${yA + 4}" font-family="monospace" font-size="13" font-weight="bold" fill="#16a34a">Q</text>
+    <line x1="${qTurnX}" y1="${yA}" x2="${qTurnX}" y2="${inB_bot}" stroke="#1e2d40" stroke-width="1.5"/>
+    <line x1="125" y1="${inB_bot}" x2="${qTurnX}" y2="${inB_bot}" stroke="#1e2d40" stroke-width="1.5"/>
+
+    <!-- Q̄: horizontal wire (crossover at qTurnX), junction, feedback turn + path -->
+    ${xover(yB, 'lr')}
+    <circle cx="265" cy="${yB}" r="3.5" fill="#1e2d40"/>
+    <circle cx="${qbTurnX}" cy="${yB}" r="3.5" fill="#1e2d40"/>
+    <text x="354" y="${yB + 4}" font-family="monospace" font-size="13" font-weight="bold" fill="#dc2626">Q</text>
+    <line x1="354" y1="${yB - 9}" x2="364" y2="${yB - 9}" stroke="#dc2626" stroke-width="1.5"/>
+    <line x1="${qbTurnX}" y1="${inA_bot}" x2="${qbTurnX}" y2="${yB}" stroke="#1e2d40" stroke-width="1.5"/>
+    ${xover(inA_bot, 'rl')}`;
+}
+
 function _norSRSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
-    <!-- Gate A (NOR) -->
-    <rect x="115" y="25" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
-    <text x="149" y="52" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">≥1</text>
-    <circle cx="189" cy="47" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
-    <!-- Gate B (NOR) -->
-    <rect x="115" y="116" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
-    <text x="149" y="143" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">≥1</text>
-    <circle cx="189" cy="138" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
+  const gAPath = _orGatePath(125, 22);
+  const gBPath = _orGatePath(125, 122);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 195" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- Feedback paths drawn first (behind gates) -->
+    ${_srWiring(185, 5)}
+    <!-- Gate A: NOR (OR body + output bubble) -->
+    <path d="${gAPath}" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <circle cx="191" cy="44" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <!-- Gate B: NOR -->
+    <path d="${gBPath}" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <circle cx="191" cy="144" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
     <!-- S input -->
-    <line x1="20" y1="37" x2="115" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="6" y="41" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">S</text>
+    <line x1="22" y1="37" x2="125" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="7" y="41" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">S</text>
     <!-- R input -->
-    <line x1="20" y1="128" x2="115" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="6" y="132" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">R</text>
-    <!-- Q output -->
-    <line x1="194" y1="47" x2="295" y2="47" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="299" y="51" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
-    <!-- Q-bar output -->
-    <line x1="194" y1="138" x2="295" y2="138" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="299" y="142" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
-    <line x1="299" y1="128" x2="309" y2="128" stroke="#dc2626" stroke-width="1.5"/>
-    <!-- Q feedback junction + path to Gate B bottom input -->
-    <circle cx="265" cy="47" r="4" fill="#1e2d40"/>
-    <polyline points="265,47 325,47 325,57 115,57" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
-    <!-- Q-bar feedback junction + path to Gate A bottom input -->
-    <circle cx="265" cy="138" r="4" fill="#1e2d40"/>
-    <polyline points="265,138 343,138 343,148 115,148" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+    <line x1="22" y1="137" x2="125" y2="137" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="7" y="141" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">R</text>
     <!-- Active HIGH badge -->
-    <rect x="10" y="167" width="120" height="17" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
-    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
+    <rect x="10" y="177" width="120" height="15" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
+    <text x="70" y="188" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
   </svg>`;
 }
 
 function _nandSRSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
-    <!-- Gate A (NAND) -->
-    <rect x="115" y="25" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
-    <text x="149" y="52" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">&amp;</text>
-    <circle cx="189" cy="47" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
-    <!-- Gate B (NAND) -->
-    <rect x="115" y="116" width="68" height="44" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="3"/>
-    <text x="149" y="143" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e2d40">&amp;</text>
-    <circle cx="189" cy="138" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
-    <!-- Active-low bubble on S̄ input -->
-    <line x1="20" y1="37" x2="104" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
-    <circle cx="110" cy="37" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
-    <!-- S-bar label -->
-    <text x="6" y="41" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">S</text>
-    <line x1="6" y1="28" x2="14" y2="28" stroke="#1e2d40" stroke-width="1.5"/>
-    <!-- Active-low bubble on R̄ input -->
-    <line x1="20" y1="128" x2="104" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
-    <circle cx="110" cy="128" r="5" fill="#fff" stroke="#1e2d40" stroke-width="2"/>
-    <!-- R-bar label -->
-    <text x="6" y="132" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">R</text>
-    <line x1="6" y1="119" x2="14" y2="119" stroke="#1e2d40" stroke-width="1.5"/>
-    <!-- Q output -->
-    <line x1="194" y1="47" x2="295" y2="47" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="299" y="51" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
-    <!-- Q-bar output -->
-    <line x1="194" y1="138" x2="295" y2="138" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="299" y="142" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
-    <line x1="299" y1="128" x2="309" y2="128" stroke="#dc2626" stroke-width="1.5"/>
-    <!-- Q feedback -->
-    <circle cx="265" cy="47" r="4" fill="#1e2d40"/>
-    <polyline points="265,47 325,47 325,57 115,57" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
-    <!-- Q-bar feedback -->
-    <circle cx="265" cy="138" r="4" fill="#1e2d40"/>
-    <polyline points="265,138 343,138 343,148 115,148" fill="none" stroke="#1e2d40" stroke-width="1.5"/>
+  const gAPath = _andGatePath(125, 22);
+  const gBPath = _andGatePath(125, 122);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 195" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- Feedback paths drawn first (behind gates) -->
+    ${_srWiring(185, 5)}
+    <!-- Gate A: NAND (AND body + output bubble) -->
+    <path d="${gAPath}" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <circle cx="191" cy="44" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <!-- Gate B: NAND -->
+    <path d="${gBPath}" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <circle cx="191" cy="144" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <!-- S̄ input: wire → active-low bubble → gate -->
+    <line x1="22" y1="37" x2="114" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
+    <circle cx="119" cy="37" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <line x1="124" y1="37" x2="125" y2="37" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- S̄ label + overbar -->
+    <text x="7" y="41" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">S</text>
+    <line x1="7" y1="28" x2="15" y2="28" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- R̄ input: wire → active-low bubble → gate -->
+    <line x1="22" y1="137" x2="114" y2="137" stroke="#1e2d40" stroke-width="1.5"/>
+    <circle cx="119" cy="137" r="5" fill="white" stroke="#1e2d40" stroke-width="2"/>
+    <line x1="124" y1="137" x2="125" y2="137" stroke="#1e2d40" stroke-width="1.5"/>
+    <!-- R̄ label + overbar -->
+    <text x="7" y="141" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">R</text>
+    <line x1="7" y1="128" x2="15" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
     <!-- Active LOW badge -->
-    <rect x="10" y="167" width="120" height="17" fill="#fee2e2" stroke="#dc2626" stroke-width="1" rx="3"/>
-    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#dc2626">Active LOW inputs</text>
+    <rect x="10" y="177" width="120" height="15" fill="#fee2e2" stroke="#dc2626" stroke-width="1" rx="3"/>
+    <text x="70" y="188" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#dc2626">Active LOW inputs</text>
   </svg>`;
 }
 
 function _nandJKSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 185" width="100%" style="max-width:370px;display:block;margin:auto;">
-    <!-- JK block -->
-    <rect x="110" y="30" width="140" height="115" fill="#fff" stroke="#1e2d40" stroke-width="2" rx="6"/>
-    <text x="180" y="75" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#1e2d40">JK</text>
-    <text x="180" y="93" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e2d40">FLIP-FLOP</text>
-    <text x="180" y="112" text-anchor="middle" font-family="monospace" font-size="10" fill="#6b7280">(NAND gates)</text>
-    <!-- J input -->
-    <line x1="20" y1="55" x2="110" y2="55" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="6" y="59" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">J</text>
-    <!-- CLK input -->
-    <line x1="20" y1="87" x2="110" y2="87" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="2" y="91" font-family="monospace" font-size="11" font-weight="bold" fill="#1e2d40">CLK</text>
-    <!-- K input -->
-    <line x1="20" y1="119" x2="110" y2="119" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="6" y="123" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">K</text>
-    <!-- Q output -->
-    <line x1="250" y1="60" x2="330" y2="60" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="334" y="64" font-family="monospace" font-size="14" font-weight="bold" fill="#16a34a">Q</text>
-    <!-- Q-bar output -->
-    <line x1="250" y1="114" x2="330" y2="114" stroke="#1e2d40" stroke-width="1.5"/>
-    <text x="334" y="118" font-family="monospace" font-size="14" font-weight="bold" fill="#dc2626">Q</text>
-    <line x1="334" y1="104" x2="344" y2="104" stroke="#dc2626" stroke-width="1.5"/>
-    <!-- Pin labels inside block -->
-    <text x="115" y="59" font-family="monospace" font-size="10" fill="#6b7280">J</text>
-    <text x="115" y="91" font-family="monospace" font-size="10" fill="#6b7280">CK</text>
-    <text x="115" y="123" font-family="monospace" font-size="10" fill="#6b7280">K</text>
-    <text x="242" y="64" text-anchor="end" font-family="monospace" font-size="10" fill="#6b7280">Q</text>
-    <text x="242" y="118" text-anchor="end" font-family="monospace" font-size="10" fill="#6b7280">Q̄</text>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 385 195" width="100%" style="max-width:370px;display:block;margin:auto;">
+    <!-- IC block -->
+    <rect x="115" y="18" width="130" height="145" fill="white" stroke="#1e2d40" stroke-width="2" rx="4"/>
+    <!-- Divider line (pin labels area) -->
+    <line x1="130" y1="18" x2="130" y2="163" stroke="#1e2d40" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
+    <line x1="230" y1="18" x2="230" y2="163" stroke="#1e2d40" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
+    <!-- IC label -->
+    <text x="180" y="56" text-anchor="middle" font-family="monospace" font-size="14" font-weight="bold" fill="#1e2d40">JK</text>
+    <text x="180" y="74" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#6b7280">flip-flop</text>
+    <text x="180" y="92" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#6b7280">(NAND implementation)</text>
+    <!-- J input pin -->
+    <line x1="25" y1="48" x2="115" y2="48" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="118" y="52" font-family="monospace" font-size="11" fill="#6b7280">J</text>
+    <text x="10" y="52" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">J</text>
+    <!-- CLK input pin (with clock triangle symbol) -->
+    <line x1="25" y1="88" x2="115" y2="88" stroke="#1e2d40" stroke-width="1.5"/>
+    <polygon points="115,80 115,96 127,88" fill="#1e2d40"/>
+    <text x="2" y="92" font-family="monospace" font-size="10" font-weight="bold" fill="#1e2d40">CLK</text>
+    <!-- K input pin -->
+    <line x1="25" y1="128" x2="115" y2="128" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="118" y="132" font-family="monospace" font-size="11" fill="#6b7280">K</text>
+    <text x="10" y="132" font-family="monospace" font-size="13" font-weight="bold" fill="#1e2d40">K</text>
+    <!-- Q output pin -->
+    <line x1="245" y1="55" x2="335" y2="55" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="228" y="59" text-anchor="end" font-family="monospace" font-size="11" fill="#6b7280">Q</text>
+    <text x="339" y="59" font-family="monospace" font-size="13" font-weight="bold" fill="#16a34a">Q</text>
+    <!-- Q̄ output pin -->
+    <line x1="245" y1="121" x2="335" y2="121" stroke="#1e2d40" stroke-width="1.5"/>
+    <text x="228" y="125" text-anchor="end" font-family="monospace" font-size="11" fill="#6b7280">Q̄</text>
+    <text x="339" y="125" font-family="monospace" font-size="13" font-weight="bold" fill="#dc2626">Q</text>
+    <line x1="339" y1="112" x2="349" y2="112" stroke="#dc2626" stroke-width="1.5"/>
     <!-- Active HIGH badge -->
-    <rect x="10" y="167" width="120" height="17" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
-    <text x="70" y="179" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
+    <rect x="10" y="177" width="120" height="15" fill="#dcfce7" stroke="#16a34a" stroke-width="1" rx="3"/>
+    <text x="70" y="188" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#16a34a">Active HIGH inputs</text>
   </svg>`;
 }
 
@@ -3250,7 +3284,7 @@ const FlipFlopDemo = {
       ? (_type === 'nor-sr'
         ? [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','X','INVALID']]
         : [['1','1','Q(n)','No change'],['1','0','0','Reset'],['0','1','1','Set'],['0','0','X','INVALID']])
-      : [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','¬Q(n)','Toggle']];
+      : [['0','0','Q(n)','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','<span class="ol">Q</span>(n)','Toggle']];
 
     const tableRows = rows.map(([a, b, q, action]) => {
       const isActive = String(_in1) === a && String(_in2) === b;
@@ -3470,10 +3504,10 @@ const FlipFlop = {
             <tr><td>0</td><td>0</td><td class="ff-ref-qn">Q(n)</td><td>No change</td></tr>
             <tr><td>0</td><td>1</td><td class="ff-ref-zero">0</td><td>Reset</td></tr>
             <tr><td>1</td><td>0</td><td class="ff-ref-one">1</td><td>Set</td></tr>
-            <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell">¬Q(n)</td><td>Toggle</td></tr>
+            <tr class="ff-ref-toggle"><td>1</td><td>1</td><td class="ff-ref-toggle-cell"><span class="ol">Q</span>(n)</td><td>Toggle</td></tr>
           </tbody>
         </table>
-        <p class="ff-ref-note">¬Q(n) means the output flips to the opposite of its current value.</p>
+        <p class="ff-ref-note"><span class="ol">Q</span>(n) means the output flips to the opposite of its current value.</p>
       </div>`;
   },
 
@@ -3482,7 +3516,7 @@ const FlipFlop = {
     if (answer === '0') return '<span class="ff-cell-done ff-val-zero">0</span>';
     if (answer === '1') return '<span class="ff-cell-done ff-val-one">1</span>';
     if (answer === 'Q') return '<span class="ff-cell-done ff-val-qn">Q(n)</span>';
-    if (answer === '¬Q') return '<span class="ff-cell-done ff-val-toggle">¬Q(n)</span>';
+    if (answer === '¬Q') return '<span class="ff-cell-done ff-val-toggle"><span class="ol">Q</span>(n)</span>';
     if (answer === 'X') return '<span class="ff-cell-done ff-val-invalid">INVALID</span>';
     return answer;
   },
@@ -3491,7 +3525,7 @@ const FlipFlop = {
   _cellButtons(i, isSR, isTiming) {
     const opts = isTiming
       ? (isSR ? [['0','0'],['1','1'],['X','X']] : [['0','0'],['1','1']])
-      : (isSR ? [['0','0'],['1','1'],['Q','Q(n)'],['X','X']] : [['0','0'],['1','1'],['Q','Q(n)'],['¬Q','¬Q(n)']]);
+      : (isSR ? [['0','0'],['1','1'],['Q','Q(n)'],['X','X']] : [['0','0'],['1','1'],['Q','Q(n)'],['¬Q','<span class="ol">Q</span>(n)']]);
     const btns = opts.map(([val, label]) => {
       const cls = `ff-btn ff-btn-${val === '0' ? 'zero' : val === '1' ? 'one' : val === 'X' ? 'invalid' : val === 'Q' ? 'qn' : 'toggle'}`;
       return `<button class="${cls}" data-row="${i}" data-val="${val}" onclick="FlipFlop._setAnswer(${i},'${val}')">${label}</button>`;
