@@ -3206,10 +3206,12 @@ const FlipFlopDemo = {
   _in1: 0,
   _in2: 0,
   _qState: 0,   // stored Q
+  _lastClocked: null,   // { prev, next } shown after each pulse
 
   render() {
     const card = document.getElementById('ff-demo-card');
     if (!card) return;
+    this._lastClocked = null;
     card.innerHTML = `
       <h3>🎛️ Flip-Flop Simulator</h3>
       <p class="teacher-card-desc">Interactive demo for classroom display. Select a flip-flop type, toggle the inputs, then clock a pulse to update the stored state.</p>
@@ -3224,7 +3226,11 @@ const FlipFlopDemo = {
 
   setType(t) {
     this._type = t;
-    this._in1 = 0; this._in2 = 0; this._qState = 0;
+    // NAND SR no-change state is S̄=1, R̄=1 (not 0,0 which is INVALID)
+    this._in1 = (t === 'nand-sr') ? 1 : 0;
+    this._in2 = (t === 'nand-sr') ? 1 : 0;
+    this._qState = 0;
+    this._lastClocked = null;
     const card = document.getElementById('ff-demo-card');
     if (card) {
       card.querySelectorAll('.ff-demo-type-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(t === 'nor-sr' ? 'Active HIGH (NOR)' : t === 'nand-sr' ? 'Active LOW' : 'JK')));
@@ -3256,17 +3262,21 @@ const FlipFlopDemo = {
 
   toggleIn1() {
     this._in1 = this._in1 === 0 ? 1 : 0;
+    this._lastClocked = null;
     const body = document.getElementById('ff-demo-body');
     if (body) body.innerHTML = this._body();
   },
   toggleIn2() {
     this._in2 = this._in2 === 0 ? 1 : 0;
+    this._lastClocked = null;
     const body = document.getElementById('ff-demo-body');
     if (body) body.innerHTML = this._body();
   },
   clockPulse() {
+    const prev = this._qState;
     const next = this._compute();
     if (next !== 'X') this._qState = next;
+    this._lastClocked = { prev, next };
     const body = document.getElementById('ff-demo-body');
     if (body) body.innerHTML = this._body();
   },
@@ -3311,6 +3321,13 @@ const FlipFlopDemo = {
             ⏱ Clock Pulse
           </button>
           ${isInvalid ? '<div style="color:#dc2626;font-size:0.82rem;margin-top:6px;font-weight:600;">⚠ INVALID state — do not apply</div>' : ''}
+          ${(() => {
+            const lc = this._lastClocked;
+            if (!lc) return '';
+            if (lc.next === 'X') return '<div style="color:#dc2626;font-size:0.82rem;margin-top:8px;">⏱ Clocked — INVALID (Q unchanged)</div>';
+            const label = lc.prev === lc.next ? 'no change' : `${lc.prev} → ${lc.next}`;
+            return `<div style="color:var(--success);font-size:0.82rem;margin-top:8px;font-weight:600;">⏱ Clocked — Q: ${label}</div>`;
+          })()}
         </div>
         <div>
           <table class="ff-ref-table">
