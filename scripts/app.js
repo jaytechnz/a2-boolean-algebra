@@ -375,12 +375,6 @@ async function loadExercises() {
   } catch (e) {
     console.error('Failed to load K-Map exercises:', e);
   }
-  try {
-    const resp = await fetch('scripts/flipflop-exercises.json');
-    FLIPFLOP_EXERCISES = (await resp.json()).exercises;
-  } catch (e) {
-    console.error('Failed to load flip-flop exercises:', e);
-  }
 }
 
 // ── Firebase auth state listener — handles login, logout, and page reload ──
@@ -1298,7 +1292,6 @@ const Teacher = {
       this.renderHeatmapAggregate();
       this.renderSuggestions();
     }
-    FlipFlopDemo.render();
   },
 
   _getAllStudents() {
@@ -3200,144 +3193,6 @@ const FlipFlopRef = {
   },
 };
 
-// ── Teacher Flip-Flop Demo Tool ──
-const FlipFlopDemo = {
-  _type: 'nor-sr',
-  _in1: 0,
-  _in2: 0,
-  _qState: 0,   // stored Q
-  _lastClocked: null,   // { prev, next } shown after each pulse
-
-  render() {
-    const card = document.getElementById('ff-demo-card');
-    if (!card) return;
-    this._lastClocked = null;
-    card.innerHTML = `
-      <h3>🎛️ Flip-Flop Simulator</h3>
-      <p class="teacher-card-desc">Interactive demo for classroom display. Select a flip-flop type, toggle the inputs, then clock a pulse to update the stored state.</p>
-      <div class="ff-demo-type-row">
-        ${['nor-sr','nand-sr','jk'].map(t => `
-          <button class="ff-demo-type-btn ${this._type === t ? 'active' : ''}" onclick="FlipFlopDemo.setType('${t}')">
-            ${t === 'nor-sr' ? 'SR Active HIGH (NOR)' : t === 'nand-sr' ? 'S̄R̄ Active LOW (NAND)' : 'JK Active HIGH (NAND)'}
-          </button>`).join('')}
-      </div>
-      <div id="ff-demo-body">${this._body()}</div>`;
-  },
-
-  setType(t) {
-    this._type = t;
-    // NAND SR no-change state is S̄=1, R̄=1 (not 0,0 which is INVALID)
-    this._in1 = (t === 'nand-sr') ? 1 : 0;
-    this._in2 = (t === 'nand-sr') ? 1 : 0;
-    this._qState = 0;
-    this._lastClocked = null;
-    const card = document.getElementById('ff-demo-card');
-    if (card) {
-      card.querySelectorAll('.ff-demo-type-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(t === 'nor-sr' ? 'Active HIGH (NOR)' : t === 'nand-sr' ? 'Active LOW' : 'JK')));
-    }
-    const body = document.getElementById('ff-demo-body');
-    if (body) body.innerHTML = this._body();
-  },
-
-  _compute() {
-    const { _type, _in1, _in2, _qState } = this;
-    if (_type === 'nor-sr') {
-      if (_in1 === 1 && _in2 === 1) return 'X';
-      if (_in1 === 1) return 1;
-      if (_in2 === 1) return 0;
-      return _qState;
-    }
-    if (_type === 'nand-sr') {
-      if (_in1 === 0 && _in2 === 0) return 'X';
-      if (_in1 === 0) return 1;
-      if (_in2 === 0) return 0;
-      return _qState;
-    }
-    // JK
-    if (_in1 === 1 && _in2 === 1) return _qState === 1 ? 0 : 1;
-    if (_in1 === 1) return 1;
-    if (_in2 === 1) return 0;
-    return _qState;
-  },
-
-  toggleIn1() {
-    this._in1 = this._in1 === 0 ? 1 : 0;
-    this._lastClocked = null;
-    const body = document.getElementById('ff-demo-body');
-    if (body) body.innerHTML = this._body();
-  },
-  toggleIn2() {
-    this._in2 = this._in2 === 0 ? 1 : 0;
-    this._lastClocked = null;
-    const body = document.getElementById('ff-demo-body');
-    if (body) body.innerHTML = this._body();
-  },
-  clockPulse() {
-    const prev = this._qState;
-    const next = this._compute();
-    if (next !== 'X') this._qState = next;
-    this._lastClocked = { prev, next };
-    const body = document.getElementById('ff-demo-body');
-    if (body) body.innerHTML = this._body();
-  },
-
-  _body() {
-    const { _type, _in1, _in2, _qState } = this;
-    const isSR = _type !== 'jk';
-    const in1Label = _type === 'nand-sr' ? 'S̄' : (isSR ? 'S' : 'J');
-    const in2Label = _type === 'nand-sr' ? 'R̄' : (isSR ? 'R' : 'K');
-    const next = this._compute();
-    const isInvalid = next === 'X';
-    const qBarDisplay = _qState === 1 ? 0 : 1;
-
-    const rows = isSR
-      ? (_type === 'nor-sr'
-        ? [['0','0','Q','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','X','INVALID']]
-        : [['1','1','Q','No change'],['1','0','0','Reset'],['0','1','1','Set'],['0','0','X','INVALID']])
-      : [['0','0','Q','No change'],['0','1','0','Reset'],['1','0','1','Set'],['1','1','<span class="ol">Q</span>','Toggle']];
-
-    const tableRows = rows.map(([a, b, q, action]) => {
-      const isActive = String(_in1) === a && String(_in2) === b;
-      return `<tr class="${isActive ? 'ff-demo-row-active' : ''}"><td>${a}</td><td>${b}</td><td>${q}</td><td>${action}</td></tr>`;
-    }).join('');
-
-    return `
-      <div class="ff-demo-layout">
-        <div class="ff-demo-controls">
-          <div class="ff-demo-io-grid">
-            <div class="ff-demo-io-label">${in1Label}</div>
-            <button class="ff-demo-input-btn ${_in1 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn1()">${_in1}</button>
-            <div class="ff-demo-io-label">${in2Label}</div>
-            <button class="ff-demo-input-btn ${_in2 === 1 ? 'high' : 'low'}" onclick="FlipFlopDemo.toggleIn2()">${_in2}</button>
-            <div class="ff-demo-io-label" style="margin-top:12px;">Q</div>
-            <div class="ff-demo-state-val">${_qState}</div>
-            <div class="ff-demo-io-label">next Q</div>
-            <div class="ff-demo-state-val" style="color:${isInvalid ? '#dc2626' : '#1e2d40'}">${next}</div>
-            <div class="ff-demo-io-label"><span class="ol">Q</span>(n)</div>
-            <div class="ff-demo-state-val" style="color:#6b7280;">${qBarDisplay}</div>
-          </div>
-          <button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="FlipFlopDemo.clockPulse()"
-            ${isInvalid ? 'disabled title="Invalid state — cannot clock"' : ''}>
-            ⏱ Clock Pulse
-          </button>
-          ${isInvalid ? '<div style="color:#dc2626;font-size:0.82rem;margin-top:6px;font-weight:600;">⚠ INVALID state — do not apply</div>' : ''}
-          ${(() => {
-            const lc = this._lastClocked;
-            if (!lc) return '';
-            if (lc.next === 'X') return '<div style="color:#dc2626;font-size:0.82rem;margin-top:8px;">⏱ Clocked — INVALID (Q unchanged)</div>';
-            const label = lc.prev === lc.next ? 'no change' : `${lc.prev} → ${lc.next}`;
-            return `<div style="color:var(--success);font-size:0.82rem;margin-top:8px;font-weight:600;">⏱ Clocked — Q: ${label}</div>`;
-          })()}
-        </div>
-        <div>
-          <table class="ff-ref-table">
-            <thead><tr><th>${in1Label}</th><th>${in2Label}</th><th>Q</th><th>Action</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-        </div>
-      </div>`;
-  },
-};
 
 // ══════════════════════════════════════════
 //  FLIP-FLOPS
